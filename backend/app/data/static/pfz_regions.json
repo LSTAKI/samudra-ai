@@ -1,0 +1,44 @@
+[
+  {
+    "id": "kerala-coast",
+    "name": "Kerala Coast (Southwest)",
+    "center": [9.9312, 76.2673],
+    "radius_km": 200,
+    "description": "Southwest coast of India — high productivity shelf break, Kochi fishery zone"
+  },
+  {
+    "id": "tamil-nadu",
+    "name": "Tamil Nadu Coast (Southeast)",
+    "center": [10.7905, 79.8083],
+    "radius_km": 200,
+    "description": "Palk Bay, Gulf of Mannar, and Coromandel Coast"
+  },
+  {
+    "id": "lakshadweep",
+    "name": "Lakshadweep Sea",
+    "center": [10.5667, 72.6333],
+    "radius_km": 300,
+    "description": "Lakshadweep Islands exclusive economic zone, oligotrophic waters"
+  },
+  {
+    "id": "andaman-sea",
+    "name": "Andaman Sea",
+    "center": [11.6234, 92.7265],
+    "radius_km": 250,
+    "description": "Andaman & Nicobar Islands, Bay of Bengal eastern margin"
+  },
+  {
+    "id": "bay-of-bengal",
+    "name": "Bay of Bengal (Central)",
+    "center": [15.0000, 88.0000],
+    "radius_km": 400,
+    "description": "Central Bay of Bengal — seasonal upwelling and cyclone track corridor"
+  },
+  {
+    "id": "arabian-sea",
+    "name": "Arabian Sea (Offshore)",
+    "center": [12.0000, 70.0000],
+    "radius_km": 400,
+    "description": "Offshore Arabian Sea — deep water, upwelling plumes, monsoon regime"
+  }
+]

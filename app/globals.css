@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+@theme {
+  --color-orca-blue: #0645AD;
+  --color-deep-ocean: #062B5C;
+  --color-ocean-navy: #0B1F3A;
+  --color-canvas: #F5F7FA;
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #EEF2F6;
+  --color-border-orca: #D9E1EA;
+  
+  --color-primary-text: #102033;
+  --color-secondary-text: #526273;
+  --color-muted-orca: #8291A3;
+  
+  --color-success-orca: #16834B;
+  --color-warning-orca: #D98200;
+  --color-danger-orca: #C62828;
+  --color-info-orca: #1677C8;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+}
+
+:root {
+  --background: #F5F7FA;
+  --foreground: #102033;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+}
+
+/* Custom scrollbar for professional terminals and sidebars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F7FA;
+}
+::-webkit-scrollbar-thumb {
+  background: #D9E1EA;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8291A3;
+}
+
+/* Mapbox / Maplibre popup style modifications to match ORCA */
+.maplibregl-popup-content {
+  background: #ffffff !important;
+  color: #102033 !important;
+  border: 1px solid #D9E1EA !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  padding: 12px !important;
+}
+.maplibregl-popup-close-button {
+  color: #526273 !important;
+  padding: 4px !important;
+  outline: none !important;
+}
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: #D9E1EA !important;
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: #D9E1EA !important;
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: #D9E1EA !important;
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: #D9E1EA !important;
+}

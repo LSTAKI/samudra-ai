@@ -128,5 +128,21 @@ export const buildWmtsTileUrlTemplate = (config: CopernicusLayerConfig): string 
     .replace('%7By%7D', '{y}')
     .replace('%7Bz%7D', '{z}');
 
-  return `${baseUrl}?${query}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+  const url = `${baseUrl}?${query}&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[ORCA WMTS DEBUG]', {
+      id: config.id,
+      product_id: config.productId,
+      dataset_id: config.datasetId,
+      variable: config.variable,
+      layer: layerPath,
+      time: config.time,
+      tileMatrixSet: config.tileMatrixSet,
+      style: config.style,
+      url
+    });
+  }
+
+  return url;
 };

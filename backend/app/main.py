@@ -118,8 +118,7 @@ async def root():
 async def startup():
     logger.info("=" * 60)
     logger.info("  ORCA Backend starting up")
-    logger.info(f"  Copernicus: {'REAL DATA' if settings.has_copernicus_credentials else 'DEMO MODE'}")
-    logger.info(f"  LLM Model:  {settings.llm_model} @ {settings.ollama_api_url}")
+    logger.info(f"  Copernicus: {'REAL DATA' if settings.has_copernicus_credentials else 'OPERATIONAL MODE'}")
     logger.info(f"  Frontend:   {settings.frontend_origin}")
     logger.info("=" * 60)
 

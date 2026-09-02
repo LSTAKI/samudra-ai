@@ -1,15 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import {
-  mockSSTTimeSeries,
-  mockChlorophyllTimeSeries,
-  mockWaveTimeSeries,
-  mockSLATimeSeries
-} from '@/mock/mockAnalytics';
-import { TrendingUp, Activity, BarChart2, Info } from 'lucide-react';
+import { fetchCopernicusTimeseries, CopernicusTimeseriesResponse } from '@/lib/api/copernicus';
+import { getLayerById } from '@/lib/map/layerRegistry';
+import { TrendingUp, Activity, BarChart2, Info, RefreshCw } from 'lucide-react';
 
 const PlotlyChart = dynamic(() => import('@/components/PlotlyChart'), {
   ssr: false,
@@ -21,108 +17,124 @@ const PlotlyChart = dynamic(() => import('@/components/PlotlyChart'), {
 });
 
 export default function AnalyticsTimeSeries() {
-  const { analyticsPrimaryParam, analyticsPeriod } = useOrcaStore();
+  const { analyticsPrimaryParam, selectedCoordinates } = useOrcaStore();
+  const [data, setData] = useState<CopernicusTimeseriesResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  let activeSeries = mockSSTTimeSeries;
-  let paramTitle = 'SEA SURFACE TEMPERATURE (SST)';
-  let paramUnit = '°C';
-  let lineColor = '#D9381E'; // reddish coral for SST
-  let baseline = 28.5;
+  const activeLayer = getLayerById(analyticsPrimaryParam) || getLayerById('sst');
+  const layerId = activeLayer ? activeLayer.id : 'copernicus-sst';
+  const lat = selectedCoordinates ? selectedCoordinates.lat : 9.9312;
+  const lon = selectedCoordinates ? selectedCoordinates.lng : 76.2673;
 
-  if (analyticsPrimaryParam === 'chlorophyll') {
-    activeSeries = mockChlorophyllTimeSeries;
-    paramTitle = 'CHLOROPHYLL-a CONCENTRATION';
-    paramUnit = 'mg/m³';
-    lineColor = '#16834B'; // emerald
-    baseline = 0.42;
-  } else if (analyticsPrimaryParam === 'waveHeight') {
-    activeSeries = mockWaveTimeSeries;
-    paramTitle = 'SIGNIFICANT WAVE HEIGHT (Hm0)';
-    paramUnit = 'm';
-    lineColor = '#0645AD'; // ocean blue
-    baseline = 1.85;
-  } else if (analyticsPrimaryParam === 'seaLevel') {
-    activeSeries = mockSLATimeSeries;
-    paramTitle = 'SEA LEVEL ANOMALY (SLA)';
-    paramUnit = 'm';
-    lineColor = '#6B21A8'; // purple
-    baseline = 0.02;
-  }
+  useEffect(() => {
+    let mounted = true;
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetchCopernicusTimeseries(layerId, lat, lon, undefined, undefined, 7);
+        if (mounted) {
+          setData(res);
+        }
+      } catch {
+        if (mounted) setData(null);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
 
-  // Filter series based on period
-  let displayedSeries = activeSeries;
-  if (analyticsPeriod === '7d') {
-    displayedSeries = activeSeries.slice(-4);
-  }
+    loadData();
+    return () => {
+      mounted = false;
+    };
+  }, [layerId, lat, lon]);
 
-  const values = displayedSeries.map((d) => d.value);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-  const meanVal = Number((values.reduce((a, b) => a + b, 0) / values.length).toFixed(2));
-  const medianVal = Number([...values].sort((a, b) => a - b)[Math.floor(values.length / 2)].toFixed(2));
-  const variance = values.reduce((sum, v) => sum + Math.pow(v - meanVal, 2), 0) / values.length;
-  const stdDev = Number(Math.sqrt(variance).toFixed(2));
-  const trendSlope = Number((values[values.length - 1] - values[0]).toFixed(2));
+  const records = data?.records || [];
+  const validRecords = records.filter((r) => r.value !== null);
+  const xTimestamps = validRecords.map((r) => r.timestamp.slice(5, 10));
+  const yValues = validRecords.map((r) => r.value as number);
+
+  const minVal = yValues.length > 0 ? Math.min(...yValues) : 0;
+  const maxVal = yValues.length > 0 ? Math.max(...yValues) : 0;
+  const meanVal = yValues.length > 0 ? yValues.reduce((a, b) => a + b, 0) / yValues.length : 0;
 
   return (
-    <div className="bg-white border border-border-orca rounded-sm p-3.5 space-y-3 font-sans select-none shadow-xs">
+    <div className="bg-white border border-border-orca rounded p-3 font-mono text-xs select-none space-y-3">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-orca pb-2 font-mono">
+      <div className="flex items-center justify-between border-b border-border-orca pb-2">
         <div className="flex items-center space-x-2">
           <TrendingUp className="w-4 h-4 text-orca-blue" />
-          <h3 className="text-xs font-bold text-primary-text tracking-wider uppercase">
-            PRIMARY TEMPORAL TREND — {paramTitle}
-          </h3>
+          <span className="font-bold text-primary-text uppercase tracking-wider text-[11px]">
+            {activeLayer?.name || 'Sea Surface Temperature'} — Observation Timeseries
+          </span>
         </div>
+        <div className="flex items-center space-x-2">
+          {loading ? (
+            <span className="flex items-center space-x-1 text-orca-blue text-[9px]">
+              <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+              <span>RETRIEVING OBSERVATIONS</span>
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 text-[8px] font-bold">
+              {data?.count || 0} COPERNICUS OBSERVATIONS
+            </span>
+          )}
+        </div>
+      </div>
 
-        <div className="flex items-center space-x-2 text-[9px]">
-          <span className="text-muted-orca">WINDOW: {analyticsPeriod.toUpperCase()}</span>
-          <span className="text-muted-orca">·</span>
-          <span className="text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded font-bold">
-            DEMO ANALYTICS
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[9px] bg-secondary-surface p-2 rounded border border-border-orca">
+        <div>
+          <span className="text-muted-orca uppercase block">Dataset ID</span>
+          <span className="font-mono text-primary-text font-bold truncate block">
+            {data?.dataset_id || activeLayer?.dataset}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-orca uppercase block">Sample Min</span>
+          <span className="font-bold text-primary-text">
+            {minVal.toFixed(2)} {data?.units || activeLayer?.units}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-orca uppercase block">Sample Mean</span>
+          <span className="font-bold text-primary-text">
+            {meanVal.toFixed(2)} {data?.units || activeLayer?.units}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-orca uppercase block">Sample Max</span>
+          <span className="font-bold text-primary-text">
+            {maxVal.toFixed(2)} {data?.units || activeLayer?.units}
           </span>
         </div>
       </div>
 
-      {/* Chart Viewport */}
-      <div className="w-full h-44">
-        <PlotlyChart
-          xData={displayedSeries.map((d) => d.date)}
-          yData={displayedSeries.map((d) => d.value)}
-          yName={paramTitle}
-          lineColor={lineColor}
-          yUnit={paramUnit}
-        />
+      {/* Main Chart */}
+      <div className="h-44 w-full">
+        {loading ? (
+          <div className="w-full h-full flex items-center justify-center text-muted-orca space-x-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-orca-blue" />
+            <span>Loading Copernicus NetCDF Series...</span>
+          </div>
+        ) : validRecords.length === 0 ? (
+          <div className="w-full h-full flex items-center justify-center text-muted-orca">
+            <span>No timeseries records found for selected coordinate.</span>
+          </div>
+        ) : (
+          <PlotlyChart
+            xData={xTimestamps}
+            yData={yValues}
+            yName={activeLayer?.name || 'SST'}
+            lineColor="#0284c7"
+            yUnit={data?.units || activeLayer?.units || '°C'}
+          />
+        )}
       </div>
 
-      {/* Summary Statistics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1 font-mono text-[9px]">
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">MINIMUM</span>
-          <span className="font-bold text-primary-text">{minVal} {paramUnit}</span>
-        </div>
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">MAXIMUM</span>
-          <span className="font-bold text-primary-text">{maxVal} {paramUnit}</span>
-        </div>
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">SAMPLE MEAN</span>
-          <span className="font-bold text-primary-text">{meanVal} {paramUnit}</span>
-        </div>
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">MEDIAN</span>
-          <span className="font-bold text-primary-text">{medianVal} {paramUnit}</span>
-        </div>
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">STD DEVIATION</span>
-          <span className="font-bold text-primary-text">±{stdDev} {paramUnit}</span>
-        </div>
-        <div className="bg-secondary-surface p-1.5 rounded border border-border-orca">
-          <span className="text-[8px] text-muted-orca uppercase block">TREND DELTA</span>
-          <span className={`font-bold ${trendSlope >= 0 ? 'text-danger-orca' : 'text-orca-blue'}`}>
-            {trendSlope >= 0 ? `+${trendSlope}` : trendSlope} {paramUnit}
-          </span>
-        </div>
+      {/* Provenance */}
+      <div className="text-[8px] text-muted-orca border-t border-border-orca pt-1 flex justify-between">
+        <span>Location: {lat.toFixed(4)}° N, {lon.toFixed(4)}° E</span>
+        <span>Source: {data?.source || 'Copernicus Marine Service'}</span>
       </div>
     </div>
   );

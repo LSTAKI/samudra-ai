@@ -2,15 +2,13 @@
 
 import React, { useState } from 'react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { pfzRegionPresets } from '@/mock/mockPFZ';
-import { MapPin, Check, Compass, Sliders } from 'lucide-react';
+import { pfzRegionPresets, PFZRegionPreset } from '@/lib/map/pfzPresets';
+import { MapPin, Check } from 'lucide-react';
 
 export default function PFZRegionSelector() {
   const {
     selectedPFZRegion,
     setSelectedPFZRegion,
-    selectedLatitude,
-    selectedLongitude,
     setSelectedCoordinates
   } = useOrcaStore();
 
@@ -19,14 +17,12 @@ export default function PFZRegionSelector() {
 
   const [inputLat, setInputLat] = useState(activePreset.centerLat.toFixed(4));
   const [inputLng, setInputLng] = useState(activePreset.centerLng.toFixed(4));
-  const [radiusKm, setRadiusKm] = useState(String(activePreset.defaultRadiusKm));
   const [applied, setApplied] = useState(false);
 
-  const handleSelectPreset = (preset: typeof pfzRegionPresets[0]) => {
+  const handleSelectPreset = (preset: PFZRegionPreset) => {
     setSelectedPFZRegion(preset.id);
     setInputLat(preset.centerLat.toFixed(4));
     setInputLng(preset.centerLng.toFixed(4));
-    setRadiusKm(String(preset.defaultRadiusKm));
     setSelectedCoordinates({ lat: preset.centerLat, lng: preset.centerLng });
   };
 
@@ -62,65 +58,47 @@ export default function PFZRegionSelector() {
           return (
             <button
               key={preset.id}
-              type="button"
               onClick={() => handleSelectPreset(preset)}
-              className={`p-1.5 rounded border text-left transition-all ${
+              className={`px-2 py-1.5 rounded border text-left flex items-center justify-between transition-colors cursor-pointer ${
                 isSelected
-                  ? 'bg-ocean-navy text-white border-ocean-navy font-bold shadow-xs'
-                  : 'bg-white text-secondary-text border-border-orca hover:bg-secondary-surface'
+                  ? 'bg-blue-50 border-orca-blue text-orca-blue font-bold shadow-xs'
+                  : 'bg-white border-border-orca text-secondary-text hover:bg-secondary-surface hover:text-primary-text'
               }`}
             >
-              <span className="block truncate">{preset.name}</span>
-              <span className="text-[8px] opacity-75 font-normal block truncate">
-                {preset.basin}
-              </span>
+              <span className="truncate">{preset.name.split('/')[0].trim()}</span>
+              {isSelected && <Check className="w-2.5 h-2.5 shrink-0" />}
             </button>
           );
         })}
       </div>
 
-      {/* Manual Coordinates & Radius Form */}
-      <form
-        onSubmit={handleApply}
-        className="bg-secondary-surface p-2.5 rounded border border-border-orca space-y-2"
-      >
-        <div className="grid grid-cols-3 gap-1.5 font-mono text-[10px]">
+      {/* Coordinates Form */}
+      <form onSubmit={handleApply} className="bg-secondary-surface p-2 rounded border border-border-orca space-y-1.5 font-mono text-[9px]">
+        <div className="grid grid-cols-2 gap-1.5">
           <div>
-            <label className="text-[8px] text-muted-orca uppercase block mb-0.5">Lat (°N)</label>
+            <label className="text-muted-orca uppercase block text-[8px]">CENTER LAT</label>
             <input
-              type="number"
-              step="0.0001"
+              type="text"
               value={inputLat}
               onChange={(e) => setInputLat(e.target.value)}
-              className="w-full bg-white border border-border-orca rounded px-1.5 py-1 text-[10px] text-primary-text font-mono focus:outline-none focus:border-orca-blue"
+              className="w-full bg-white border border-border-orca rounded px-1.5 py-1 text-primary-text font-bold"
             />
           </div>
           <div>
-            <label className="text-[8px] text-muted-orca uppercase block mb-0.5">Lng (°E)</label>
+            <label className="text-muted-orca uppercase block text-[8px]">CENTER LON</label>
             <input
-              type="number"
-              step="0.0001"
+              type="text"
               value={inputLng}
               onChange={(e) => setInputLng(e.target.value)}
-              className="w-full bg-white border border-border-orca rounded px-1.5 py-1 text-[10px] text-primary-text font-mono focus:outline-none focus:border-orca-blue"
-            />
-          </div>
-          <div>
-            <label className="text-[8px] text-muted-orca uppercase block mb-0.5">Radius (km)</label>
-            <input
-              type="number"
-              value={radiusKm}
-              onChange={(e) => setRadiusKm(e.target.value)}
-              className="w-full bg-white border border-border-orca rounded px-1.5 py-1 text-[10px] text-primary-text font-mono focus:outline-none focus:border-orca-blue"
+              className="w-full bg-white border border-border-orca rounded px-1.5 py-1 text-primary-text font-bold"
             />
           </div>
         </div>
-
         <button
           type="submit"
-          className="w-full bg-ocean-navy hover:bg-[#12315b] text-white py-1 rounded text-[9px] font-mono font-bold tracking-wider uppercase transition-colors"
+          className="w-full bg-white hover:bg-slate-200 border border-border-orca text-primary-text font-bold py-1 rounded transition-colors text-[9px] cursor-pointer"
         >
-          APPLY REGION
+          UPDATE SECTOR COORDINATES
         </button>
       </form>
     </div>

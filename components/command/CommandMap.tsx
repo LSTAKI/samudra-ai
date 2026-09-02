@@ -5,7 +5,7 @@ import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 import { mockOperationalEvents, mockDemoVessels } from '@/mock/mockCommand';
-import { mockPFZZones, mockIMBLBoundary, mockIMBLWarningBuffer, mockEEZBoundary } from '@/mock/mockPFZ';
+import { eezBoundaryCoordinates, imblBoundaryCoordinates, imblWarningBufferCoordinates } from '@/lib/map/maritimeBoundaries';
 import { OceanLayerManager } from '@/lib/map/layerManager';
 import {
   ZoomIn,
@@ -105,7 +105,7 @@ export default function CommandMap() {
               properties: { name: 'IMBL Boundary', type: 'imbl' },
               geometry: {
                 type: 'LineString',
-                coordinates: mockIMBLBoundary.map((c) => [c[1], c[0]])
+                coordinates: imblBoundaryCoordinates.map((c) => [c[0], c[1]])
               }
             },
             {
@@ -113,7 +113,7 @@ export default function CommandMap() {
               properties: { name: 'IMBL Warning Buffer', type: 'buffer' },
               geometry: {
                 type: 'LineString',
-                coordinates: mockIMBLWarningBuffer.map((c) => [c[1], c[0]])
+                coordinates: imblWarningBufferCoordinates.map((c) => [c[0], c[1]])
               }
             },
             {
@@ -121,7 +121,7 @@ export default function CommandMap() {
               properties: { name: 'Indian EEZ Approximation', type: 'eez' },
               geometry: {
                 type: 'LineString',
-                coordinates: mockEEZBoundary.map((c) => [c[1], c[0]])
+                coordinates: eezBoundaryCoordinates.map((c) => [c[0], c[1]])
               }
             }
           ]
@@ -151,11 +151,7 @@ export default function CommandMap() {
         type: 'geojson',
         data: {
           type: 'FeatureCollection',
-          features: mockPFZZones.map((z) => ({
-            type: 'Feature',
-            properties: { id: z.id, name: z.name },
-            geometry: z.geometry
-          }))
+          features: []
         }
       });
 

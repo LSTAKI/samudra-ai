@@ -4,9 +4,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { mockPFZZones, pfzRegionPresets } from '@/mock/mockPFZ';
+import { fetchPFZZones, PFZZone } from '@/lib/api/pfz';
+import { pfzRegionPresets, PFZRegionPreset } from '@/lib/map/pfzPresets';
 import { OceanLayerManager } from '@/lib/map/layerManager';
-import { PFZZone } from '@/types/pfz';
 import {
   Maximize2,
   Minimize2,
@@ -16,8 +16,64 @@ import {
   Compass,
   Target,
   Layers,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
+
+function buildZonesGeoJson(zones: PFZZone[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: zones.map((zone) => {
+      const radiusDeg = 0.12;
+      const numPoints = 24;
+      const ring: [number, number][] = [];
+      for (let i = 0; i <= numPoints; i++) {
+        const theta = (i / numPoints) * 2 * Math.PI;
+        ring.push([
+          zone.longitude + radiusDeg * Math.cos(theta),
+          zone.latitude + radiusDeg * Math.sin(theta)
+        ]);
+      }
+      return {
+        type: 'Feature' as const,
+        id: zone.id,
+        properties: {
+          id: zone.id,
+          name: zone.name,
+          score: zone.score,
+          classification: zone.classification,
+          sst: zone.sst_c,
+          chlorophyll: zone.chlorophyll_mg_m3,
+          waveHeight: zone.wave_height_m
+        },
+        geometry: {
+          type: 'Polygon' as const,
+          coordinates: [ring]
+        }
+      };
+    })
+  };
+}
+
+function buildCentersGeoJson(zones: PFZZone[]) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: zones.map((zone) => ({
+      type: 'Feature' as const,
+      id: zone.id,
+      properties: {
+        id: zone.id,
+        name: zone.name,
+        score: zone.score,
+        classification: zone.classification
+      },
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [zone.longitude, zone.latitude]
+      }
+    }))
+  };
+}
 
 export default function PFZMap() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -38,21 +94,70 @@ export default function PFZMap() {
     selectedTimestamp
   } = useOrcaStore();
 
+  const [zones, setZones] = useState<PFZZone[]>([]);
+  const [loadingZones, setLoadingZones] = useState(false);
   const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<string>('5.8');
+  const [zoomLevel, setZoomLevel] = useState<string>('6.2');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const activeZone =
-    mockPFZZones.find((z) => z.id === selectedPFZZoneId) || mockPFZZones[0];
   const activeRegion =
     pfzRegionPresets.find((r) => r.id === selectedPFZRegion) || pfzRegionPresets[0];
+
+  const activeZone =
+    zones.find((z) => z.id === selectedPFZZoneId) || zones[0];
+
+  // Fetch real PFZ zones from backend
+  useEffect(() => {
+    let mounted = true;
+    const loadZones = async () => {
+      setLoadingZones(true);
+      try {
+        const res = await fetchPFZZones(
+          selectedLatitude || activeRegion.centerLat,
+          selectedLongitude || activeRegion.centerLng,
+          activeRegion.harbor
+        );
+        if (mounted && res.zones && res.zones.length > 0) {
+          setZones(res.zones);
+          if (!selectedPFZZoneId && res.zones.length > 0) {
+            setSelectedPFZZoneId(res.zones[0].id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load PFZ zones:', err);
+      } finally {
+        if (mounted) setLoadingZones(false);
+      }
+    };
+
+    loadZones();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedPFZRegion, selectedLatitude, selectedLongitude]);
+
+  // Update map source when zones change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded() || zones.length === 0) return;
+
+    const zonesSrc = map.getSource('pfz-zones') as maplibregl.GeoJSONSource;
+    if (zonesSrc) {
+      zonesSrc.setData(buildZonesGeoJson(zones));
+    }
+
+    const centersSrc = map.getSource('pfz-centers') as maplibregl.GeoJSONSource;
+    if (centersSrc) {
+      centersSrc.setData(buildCentersGeoJson(zones));
+    }
+  }, [zones]);
 
   // Initialize MapLibre
   useEffect(() => {
     if (!mapElRef.current || mapRef.current) return;
 
-    const initialLat = activeZone ? activeZone.latitude : 9.8;
-    const initialLng = activeZone ? activeZone.longitude : 75.8;
+    const initialLat = activeRegion ? activeRegion.centerLat : 9.8;
+    const initialLng = activeRegion ? activeRegion.centerLng : 75.8;
 
     const map = new maplibregl.Map({
       container: mapElRef.current,
@@ -63,7 +168,7 @@ export default function PFZMap() {
             type: 'raster',
             tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
             tileSize: 256,
-            attribution: '© OpenStreetMap contributors | Copernicus Marine Service | ORCA PFZ'
+            attribution: '© OpenStreetMap contributors | Copernicus Marine Service | ORCA PFZ Engine'
           }
         },
         layers: [
@@ -87,7 +192,7 @@ export default function PFZMap() {
     map.on('load', () => {
       map.resize();
 
-      // 1. Add background Copernicus Chlorophyll & SST layers via OceanLayerManager
+      // 1. Add background Copernicus Chlorophyll & SST layers
       const chlLayer = layerManagerRef.current.getLayer('copernicus-chl');
       if (chlLayer) {
         chlLayer.time = selectedTimestamp;
@@ -107,7 +212,7 @@ export default function PFZMap() {
       // 2. Add PFZ Candidate Zones GeoJSON Source
       map.addSource('pfz-zones', {
         type: 'geojson',
-        data: buildZonesGeoJson(mockPFZZones)
+        data: buildZonesGeoJson(zones)
       });
 
       // Fill Layer
@@ -149,7 +254,7 @@ export default function PFZMap() {
       // Center Points Layer
       map.addSource('pfz-centers', {
         type: 'geojson',
-        data: buildCentersGeoJson(mockPFZZones)
+        data: buildCentersGeoJson(zones)
       });
 
       map.addLayer({
@@ -171,32 +276,22 @@ export default function PFZMap() {
         }
       });
 
-      // Click to select PFZ zone
-      map.on('click', 'pfz-zones-fill', (e) => {
+      // Click handler
+      const handleZoneClick = (e: maplibregl.MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] }) => {
         if (e.features && e.features.length > 0) {
           const zoneId = e.features[0].properties?.id;
           if (zoneId) {
             setSelectedPFZZoneId(zoneId);
-            const found = mockPFZZones.find((z) => z.id === zoneId);
+            const found = zones.find((z) => z.id === zoneId);
             if (found) {
               setSelectedCoordinates({ lat: found.latitude, lng: found.longitude });
             }
           }
         }
-      });
+      };
 
-      map.on('click', 'pfz-centers-circle', (e) => {
-        if (e.features && e.features.length > 0) {
-          const zoneId = e.features[0].properties?.id;
-          if (zoneId) {
-            setSelectedPFZZoneId(zoneId);
-            const found = mockPFZZones.find((z) => z.id === zoneId);
-            if (found) {
-              setSelectedCoordinates({ lat: found.latitude, lng: found.longitude });
-            }
-          }
-        }
-      });
+      map.on('click', 'pfz-zones-fill', handleZoneClick);
+      map.on('click', 'pfz-centers-circle', handleZoneClick);
 
       map.on('mouseenter', 'pfz-zones-fill', () => {
         map.getCanvas().style.cursor = 'pointer';
@@ -236,7 +331,7 @@ export default function PFZMap() {
     };
   }, []);
 
-  // Update raster visibility when pfzActiveRaster changes
+  // Update raster visibility
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
@@ -245,18 +340,18 @@ export default function PFZMap() {
     layerManagerRef.current.setVisibility(map, 'copernicus-sst', pfzActiveRaster === 'sst');
   }, [pfzActiveRaster]);
 
-  // Recenter when selectedPFZRegion changes
+  // Recenter when preset changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     const preset = pfzRegionPresets.find((p) => p.id === selectedPFZRegion);
     if (preset) {
-      map.flyTo({ center: [preset.centerLng, preset.centerLat], zoom: preset.zoom, essential: true });
+      map.flyTo({ center: [preset.centerLng, preset.centerLat], zoom: 6.2, essential: true });
     }
   }, [selectedPFZRegion]);
 
-  // Update marker position for active zone
+  // Marker for active zone
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -283,9 +378,8 @@ export default function PFZMap() {
     } else {
       markerRef.current.setLngLat([targetCoords.lng, targetCoords.lat]);
     }
-  }, [selectedPFZZoneId, selectedCoordinates]);
+  }, [selectedPFZZoneId, selectedCoordinates, activeZone]);
 
-  // Recenter map on active zone
   const handleRecenter = () => {
     if (!mapRef.current) return;
     if (activeZone) {
@@ -295,176 +389,77 @@ export default function PFZMap() {
 
   const handleResetView = () => {
     if (!mapRef.current) return;
-    mapRef.current.flyTo({ center: [78.5, 12.0], zoom: 5.2, essential: true });
-  };
-
-  const toggleFullscreen = () => {
-    if (!mapContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      mapContainerRef.current.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
-    }
+    mapRef.current.flyTo({ center: [76.5, 9.8], zoom: 6.0, essential: true });
   };
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="flex-1 relative flex flex-col h-full w-full bg-[#0a1b33] overflow-hidden select-none"
-    >
-      {/* Top Left Scientific Info Card */}
-      <div className="absolute top-3 left-3 z-10 pointer-events-auto">
-        <div className="bg-white/95 border border-border-orca rounded-md px-3 py-2 shadow-sm font-sans select-none backdrop-blur-sm">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-[11px] font-bold tracking-wider uppercase text-primary-text font-mono flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5 text-orca-blue" />
-              {activeZone ? activeZone.name : 'POTENTIAL FISHING ZONE ANALYZER'}
-            </span>
-            <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.5 rounded">
-              DEMO PFZ CANDIDATE
-            </span>
-          </div>
-          <div className="text-[10px] text-secondary-text font-mono mt-0.5 flex items-center justify-between gap-3">
-            <span>
-              {activeZone ? `${activeZone.sector} · Score ${activeZone.score}/100` : activeRegion.name}
-            </span>
-            <span className="text-muted-orca font-semibold">
-              RASTER: {pfzActiveRaster.toUpperCase()}
-            </span>
-          </div>
+    <div ref={mapContainerRef} className="relative w-full h-full bg-[#e5e9ec] overflow-hidden select-none">
+      {/* MapLibre DOM */}
+      <div ref={mapElRef} className="w-full h-full" />
+
+      {/* Loading Overlay */}
+      {loadingZones && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 bg-white/90 backdrop-blur border border-border-orca px-3 py-1.5 rounded shadow-sm flex items-center gap-2 font-mono text-[10px] text-orca-blue font-bold">
+          <RefreshCw className="w-3 h-3 animate-spin" />
+          <span>COMPUTING DETERMINISTIC GRADIENTS...</span>
+        </div>
+      )}
+
+      {/* Floating Status Badge */}
+      <div className="absolute top-3 left-3 z-10 bg-white/95 backdrop-blur border border-border-orca p-2.5 rounded shadow-sm font-mono text-[9px] space-y-1">
+        <div className="flex items-center justify-between gap-4">
+          <span className="font-bold text-primary-text uppercase">
+            {activeRegion.name.split('/')[0]}
+          </span>
+          <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-1 py-0.2 rounded">
+            v1.0-deterministic
+          </span>
+        </div>
+        <div className="text-secondary-text flex items-center gap-2">
+          <span>{zones.length} Candidate Zones</span>
+          <span>·</span>
+          <span>Source: Copernicus L4</span>
         </div>
       </div>
 
-      {/* MapLibre Container */}
-      <div ref={mapElRef} className="w-full h-full cursor-crosshair" />
+      {/* Bottom Coordinates & Scale */}
+      <div className="absolute bottom-3 left-3 z-10 bg-white/90 backdrop-blur border border-border-orca px-2.5 py-1 rounded shadow-xs font-mono text-[9px] text-secondary-text flex items-center space-x-3">
+        <span>CURSOR: {cursorCoords ? `${cursorCoords.lat.toFixed(3)}°N, ${cursorCoords.lng.toFixed(3)}°E` : '--'}</span>
+        <span>·</span>
+        <span>ZOOM: {zoomLevel}</span>
+      </div>
 
       {/* Map Controls */}
-      <div className="absolute right-3 top-3 z-10 flex flex-col space-y-1 bg-white/95 border border-border-orca p-1 rounded shadow-sm backdrop-blur-sm">
+      <div className="absolute bottom-3 right-3 z-10 flex flex-col space-y-1">
         <button
           onClick={() => mapRef.current?.zoomIn()}
-          className="p-1.5 hover:bg-surface-secondary text-primary-text rounded transition-all focus:outline-none"
+          className="p-2 bg-white hover:bg-secondary-surface text-primary-text border border-border-orca rounded shadow-xs transition-colors cursor-pointer"
           title="Zoom In"
         >
           <ZoomIn className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => mapRef.current?.zoomOut()}
-          className="p-1.5 hover:bg-surface-secondary text-primary-text rounded transition-all focus:outline-none"
+          className="p-2 bg-white hover:bg-secondary-surface text-primary-text border border-border-orca rounded shadow-xs transition-colors cursor-pointer"
           title="Zoom Out"
         >
           <ZoomOut className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={handleRecenter}
-          className="p-1.5 hover:bg-surface-secondary text-primary-text rounded transition-all focus:outline-none"
-          title="Recenter on PFZ Zone"
+          className="p-2 bg-white hover:bg-secondary-surface text-orca-blue border border-border-orca rounded shadow-xs transition-colors cursor-pointer"
+          title="Focus Selected Zone"
         >
-          <Compass className="w-3.5 h-3.5" />
+          <Target className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={handleResetView}
-          className="p-1.5 hover:bg-surface-secondary text-primary-text rounded transition-all focus:outline-none"
-          title="Reset Indian Ocean View"
+          className="p-2 bg-white hover:bg-secondary-surface text-primary-text border border-border-orca rounded shadow-xs transition-colors cursor-pointer"
+          title="Reset View"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
-        <button
-          onClick={toggleFullscreen}
-          className="p-1.5 hover:bg-surface-secondary text-primary-text rounded border-t border-border-orca transition-all focus:outline-none"
-          title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-        >
-          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-        </button>
-      </div>
-
-      {/* Coordinates Status Bar (Bottom of Map) */}
-      <div className="absolute bottom-3 left-3 z-10 bg-ocean-navy/95 text-white text-[9px] font-mono px-2.5 py-1 rounded shadow flex items-center space-x-3 border border-[#1b3459] backdrop-blur-sm">
-        <div className="flex items-center gap-1">
-          <Compass className="w-3 h-3 text-muted-orca" />
-          <span>CURSOR:</span>
-          <span className="text-[#a4c2f4]">
-            {cursorCoords ? `${cursorCoords.lat}° N, ${cursorCoords.lng}° E` : '--° N, --° E'}
-          </span>
-        </div>
-        <div>
-          <span>ZOOM:</span>
-          <span className="text-[#a4c2f4]">{zoomLevel}</span>
-        </div>
-        {selectedCoordinates && (
-          <div className="border-l border-[#1b3459] pl-3 flex items-center gap-1">
-            <span className="text-muted-orca">SELECTED:</span>
-            <span className="text-[#ffdf9e]">
-              {selectedCoordinates.lat}° N, {selectedCoordinates.lng}° E
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* PFZ Candidate Legend Overlay (Bottom Right) */}
-      <div className="absolute bottom-3 right-3 z-10 bg-white/95 border border-border-orca p-2 rounded shadow-sm w-44 text-xs font-sans pointer-events-auto backdrop-blur-sm">
-        <div className="flex items-center justify-between border-b border-border-orca pb-1 mb-1 font-mono text-[9px]">
-          <span className="font-bold text-primary-text uppercase">PFZ CANDIDATES</span>
-          <span className="text-amber-600 font-bold">DEMO</span>
-        </div>
-
-        <div className="space-y-1 font-mono text-[8px]">
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-[#16834B]/40 border border-[#16834B]"></span>
-            <span className="text-primary-text font-bold">HIGH CANDIDATE</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-[#D97706]/40 border border-[#D97706]"></span>
-            <span className="text-primary-text font-bold">MODERATE CANDIDATE</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-xs bg-[#64748B]/40 border border-[#64748B]"></span>
-            <span className="text-primary-text font-bold">LOW CANDIDATE</span>
-          </div>
-          <div className="pt-1 border-t border-border-orca/60 text-[8px] text-muted-orca flex items-center justify-between">
-            <span>RASTER:</span>
-            <span className="text-primary-text font-bold">
-              {pfzActiveRaster === 'chlorophyll' ? 'Copernicus Chl-a' : pfzActiveRaster === 'sst' ? 'Copernicus SST' : 'Basemap Only'}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
-}
-
-// Helpers
-function buildZonesGeoJson(zones: PFZZone[]) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: zones.map((z) => ({
-      type: 'Feature' as const,
-      properties: {
-        id: z.id,
-        name: z.name,
-        classification: z.classification,
-        score: z.score
-      },
-      geometry: z.geometry
-    }))
-  };
-}
-
-function buildCentersGeoJson(zones: PFZZone[]) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: zones.map((z) => ({
-      type: 'Feature' as const,
-      properties: {
-        id: z.id,
-        classification: z.classification,
-        score: z.score
-      },
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [z.longitude, z.latitude]
-      }
-    }))
-  };
 }

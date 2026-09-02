@@ -70,11 +70,11 @@ export default function SatelliteObservationInspector() {
         <div className="flex items-center space-x-2">
           <Radio className="w-4 h-4 text-orca-blue" />
           <h2 className="text-xs font-bold text-primary-text uppercase tracking-wider font-mono">
-            OBSERVATION INSPECTOR
+            SATELLITE PLATFORM SPEC
           </h2>
         </div>
-        <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
-          DEMO
+        <span className="text-[8px] font-mono font-bold text-slate-700 bg-slate-100 border border-slate-300 px-1.5 py-0.5 rounded">
+          METADATA
         </span>
       </div>
 
@@ -143,9 +143,9 @@ export default function SatelliteObservationInspector() {
           </div>
 
           <div className="flex items-center justify-between pt-1 border-t border-border-orca">
-            <span className="text-secondary-text">TELEMETRY STATUS:</span>
-            <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-1 py-0.2 rounded">
-              ● DEMO OBSERVATION
+            <span className="text-secondary-text">LIVE IMAGERY FEED:</span>
+            <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[8px]">
+              UNAVAILABLE (TOKEN REQUIRED)
             </span>
           </div>
         </div>
@@ -154,41 +154,37 @@ export default function SatelliteObservationInspector() {
         <div className="border border-border-orca rounded p-2.5 bg-secondary-surface space-y-1.5">
           <div className="flex items-center gap-1 text-[10px] font-mono font-bold text-secondary-text">
             <Database className="w-3.5 h-3.5 text-orca-blue" />
-            <span>OPERATIONAL INTEGRATION SPEC</span>
+            <span>OPERATIONAL DATA PROVENANCE</span>
           </div>
           <p className="text-[9px] text-muted-orca font-sans leading-relaxed">
-            Direct ISRO MOSDAC Level-1B raw telemetry parsing is scheduled for Phase 3. Processed Level-4 reanalysis is live in the Research Console.
+            Direct raw Level-1B downlink streaming requires authenticated MOSDAC API tokens. Processed Level-4 Copernicus observation rasters are active in the Research Console.
           </p>
         </div>
 
-        {/* Cross-Navigation Actions */}
-        <div className="space-y-2 pt-1">
-          <div className="text-[9px] font-mono text-muted-orca uppercase font-bold tracking-wider">
-            CROSS-MODULE CORRELATION
-          </div>
-
+        {/* Cross-Module Quick Actions */}
+        <div className="space-y-2 pt-1 font-mono">
           <button
             type="button"
             onClick={handleOpenInResearchConsole}
-            className="w-full flex items-center justify-between bg-ocean-navy hover:bg-[#12315b] text-white p-2 rounded text-[10px] font-mono font-bold tracking-wider uppercase transition-colors"
+            className="w-full h-8 px-3 rounded bg-white hover:bg-slate-100 text-primary-text text-[10px] font-bold border border-border-orca flex items-center justify-between transition-colors cursor-pointer"
           >
             <div className="flex items-center space-x-1.5">
-              <Layers className="w-3.5 h-3.5 text-orca-blue" />
-              <span>OPEN IN RESEARCH CONSOLE</span>
+              <Layers className="w-3 h-3 text-orca-blue" />
+              <span>INSPECT IN RESEARCH CONSOLE</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3 h-3 text-secondary-text" />
           </button>
 
           <button
             type="button"
             onClick={handleExploreOcean}
-            className="w-full flex items-center justify-between bg-white hover:bg-secondary-surface text-primary-text border border-border-orca p-2 rounded text-[10px] font-mono font-bold tracking-wider uppercase transition-colors"
+            className="w-full h-8 px-3 rounded bg-white hover:bg-slate-100 text-primary-text text-[10px] font-bold border border-border-orca flex items-center justify-between transition-colors cursor-pointer"
           >
             <div className="flex items-center space-x-1.5">
-              <Compass className="w-3.5 h-3.5 text-orca-blue" />
-              <span>EXPLORE OCEAN DATA</span>
+              <Compass className="w-3 h-3 text-orca-blue" />
+              <span>EXPLORE IN OCEAN 3D VIEW</span>
             </div>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-3 h-3 text-secondary-text" />
           </button>
         </div>
       </div>

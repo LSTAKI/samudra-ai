@@ -429,9 +429,6 @@ export default function OceanView() {
                   className="max-h-[90px] w-auto object-contain"
                 />
               </div>
-              <div className="text-[8px] font-mono text-center text-success-orca font-bold">
-                ● COPERNICUS MARINE
-              </div>
             </div>
           ) : (
             <div>

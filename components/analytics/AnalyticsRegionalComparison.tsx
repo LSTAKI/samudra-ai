@@ -1,133 +1,159 @@
 'use client';
 
-import React from 'react';
-import { mockRegionalComparisons } from '@/mock/mockAnalytics';
+import React, { useEffect, useState } from 'react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { Globe2, MapPin } from 'lucide-react';
+import { fetchCopernicusSpatialSummary, CopernicusSpatialSummaryResponse } from '@/lib/api/copernicus';
+import { Globe2, MapPin, RefreshCw } from 'lucide-react';
 
 export default function AnalyticsRegionalComparison() {
   const { analyticsPrimaryParam } = useOrcaStore();
+  const [arabianSea, setArabianSea] = useState<CopernicusSpatialSummaryResponse | null>(null);
+  const [bayOfBengal, setBayOfBengal] = useState<CopernicusSpatialSummaryResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  let unit = '°C';
-  let paramLabel = 'SST';
-  let maxScale = 32;
+  const layerKey = analyticsPrimaryParam === 'chlorophyll'
+    ? 'copernicus-chl'
+    : analyticsPrimaryParam === 'waveHeight'
+    ? 'copernicus-wave'
+    : analyticsPrimaryParam === 'seaLevel'
+    ? 'copernicus-sla'
+    : 'copernicus-sst';
 
-  if (analyticsPrimaryParam === 'chlorophyll') {
-    unit = 'mg/m³';
-    paramLabel = 'Chlorophyll';
-    maxScale = 1.0;
-  } else if (analyticsPrimaryParam === 'waveHeight') {
-    unit = 'm';
-    paramLabel = 'Wave Height';
-    maxScale = 3.5;
-  } else if (analyticsPrimaryParam === 'seaLevel') {
-    unit = 'm';
-    paramLabel = 'SLA';
-    maxScale = 0.15;
-  }
+  useEffect(() => {
+    let mounted = true;
+    const loadBasinStats = async () => {
+      setLoading(true);
+      try {
+        const [asRes, bobRes] = await Promise.all([
+          // Arabian Sea BBOX: 8-16°N, 68-76°E
+          fetchCopernicusSpatialSummary(layerKey, 8.0, 16.0, 68.0, 76.0),
+          // Bay of Bengal BBOX: 8-16°N, 80-88°E
+          fetchCopernicusSpatialSummary(layerKey, 8.0, 16.0, 80.0, 88.0)
+        ]);
 
-  // Parameter-specific data mapping
-  const regionalData = mockRegionalComparisons.map((reg) => {
-    let val = reg.currentValue;
-    let diff = reg.difference;
+        if (mounted) {
+          setArabianSea(asRes);
+          setBayOfBengal(bobRes);
+        }
+      } catch {
+        if (mounted) {
+          setArabianSea(null);
+          setBayOfBengal(null);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
 
-    if (analyticsPrimaryParam === 'chlorophyll') {
-      const chlMap: Record<string, { val: number; diff: number }> = {
-        as: { val: 0.38, diff: 0.04 },
-        kc: { val: 0.65, diff: 0.18 },
-        bob: { val: 0.44, diff: 0.06 },
-        tn: { val: 0.52, diff: 0.11 },
-        lk: { val: 0.41, diff: 0.05 },
-        sl: { val: 0.48, diff: 0.09 }
-      };
-      val = chlMap[reg.id]?.val ?? 0.45;
-      diff = chlMap[reg.id]?.diff ?? 0.05;
-    } else if (analyticsPrimaryParam === 'waveHeight') {
-      const waveMap: Record<string, { val: number; diff: number }> = {
-        as: { val: 2.1, diff: 0.3 },
-        kc: { val: 1.4, diff: -0.4 },
-        bob: { val: 1.9, diff: 0.1 },
-        tn: { val: 1.6, diff: -0.2 },
-        lk: { val: 1.7, diff: -0.1 },
-        sl: { val: 1.3, diff: -0.5 }
-      };
-      val = waveMap[reg.id]?.val ?? 1.6;
-      diff = waveMap[reg.id]?.diff ?? 0.1;
-    } else if (analyticsPrimaryParam === 'seaLevel') {
-      const slaMap: Record<string, { val: number; diff: number }> = {
-        as: { val: 0.05, diff: 0.03 },
-        kc: { val: 0.03, diff: 0.01 },
-        bob: { val: 0.07, diff: 0.05 },
-        tn: { val: 0.04, diff: 0.02 },
-        lk: { val: 0.06, diff: 0.04 },
-        sl: { val: 0.05, diff: 0.03 }
-      };
-      val = slaMap[reg.id]?.val ?? 0.04;
-      diff = slaMap[reg.id]?.diff ?? 0.02;
-    }
-
-    return { ...reg, displayVal: val, displayDiff: diff };
-  });
+    loadBasinStats();
+    return () => {
+      mounted = false;
+    };
+  }, [layerKey]);
 
   return (
-    <div className="bg-white border border-border-orca rounded-sm p-3.5 space-y-3 font-sans select-none shadow-xs">
-      <div className="flex items-center justify-between border-b border-border-orca pb-2 font-mono">
+    <div className="bg-white border border-border-orca rounded p-3.5 space-y-3 font-mono select-none">
+      <div className="flex items-center justify-between border-b border-border-orca pb-2">
         <div className="flex items-center space-x-2">
           <Globe2 className="w-4 h-4 text-orca-blue" />
           <h3 className="text-xs font-bold text-primary-text tracking-wider uppercase">
-            REGIONAL BASIN COMPARISON — {paramLabel}
+            REGIONAL BASIN COMPARISON
           </h3>
         </div>
-        <span className="text-[9px] font-mono font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded">
-          DEMO ANALYTICS
-        </span>
+        <div className="flex items-center space-x-2">
+          {loading ? (
+            <span className="flex items-center space-x-1 text-orca-blue text-[8px]">
+              <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+              <span>COMPUTING BBOX STATS</span>
+            </span>
+          ) : (
+            <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5 rounded">
+              REAL COPERNICUS BBOX SAMPLING
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-2 font-mono text-[9px]">
-        {regionalData.map((reg) => {
-          const isPositive = reg.displayDiff >= 0;
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[9px]">
+        {/* Arabian Sea Card */}
+        <div className="p-3 bg-secondary-surface rounded border border-border-orca space-y-2">
+          <div className="flex items-center justify-between border-b border-border-orca pb-1.5">
+            <span className="font-bold text-primary-text flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-orca-blue" />
+              ARABIAN SEA BASIN
+            </span>
+            <span className="text-[8px] text-muted-orca">8-16°N, 68-76°E</span>
+          </div>
 
-          return (
-            <div
-              key={reg.id}
-              className="p-2 bg-secondary-surface rounded border border-border-orca space-y-1"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-1.5 font-bold text-primary-text">
-                  <MapPin className="w-3 h-3 text-secondary-text" />
-                  <span>{reg.region}</span>
-                  <span className="text-[8px] text-muted-orca font-normal">({reg.basin})</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="font-bold text-primary-text">
-                    {reg.displayVal} {unit}
-                  </span>
-                  <span
-                    className={`font-bold px-1 rounded border text-[8px] ${
-                      isPositive
-                        ? 'text-danger-orca bg-red-50 border-red-200'
-                        : 'text-orca-blue bg-blue-50 border-blue-200'
-                    }`}
-                  >
-                    {isPositive ? `+${reg.displayDiff}` : reg.displayDiff} {unit}
-                  </span>
-                </div>
+          {arabianSea?.statistics ? (
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="p-1.5 bg-white rounded border border-border-orca">
+                <span className="text-[7.5px] text-muted-orca block">MIN</span>
+                <span className="font-bold text-primary-text">{arabianSea.statistics.min.toFixed(2)}</span>
+                <span className="text-[7px] text-muted-orca">{arabianSea.units}</span>
               </div>
-
-              {/* Visual Ratio Bar */}
-              <div className="w-full bg-slate-200 h-1 rounded overflow-hidden">
-                <div
-                  style={{ width: `${Math.min(100, (reg.displayVal / maxScale) * 100)}%` }}
-                  className="bg-ocean-navy h-full rounded"
-                />
+              <div className="p-1.5 bg-sky-50 rounded border border-sky-200">
+                <span className="text-[7.5px] text-orca-blue font-bold block">MEAN</span>
+                <span className="font-bold text-orca-blue text-sm">{arabianSea.statistics.mean.toFixed(2)}</span>
+                <span className="text-[7px] text-orca-blue">{arabianSea.units}</span>
+              </div>
+              <div className="p-1.5 bg-white rounded border border-border-orca">
+                <span className="text-[7.5px] text-muted-orca block">MAX</span>
+                <span className="font-bold text-primary-text">{arabianSea.statistics.max.toFixed(2)}</span>
+                <span className="text-[7px] text-muted-orca">{arabianSea.units}</span>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div className="p-3 text-center text-muted-orca text-[8px]">
+              {loading ? 'Sampling ocean grid...' : 'No regional observations'}
+            </div>
+          )}
 
-      <div className="text-[8px] font-mono text-muted-orca pt-1 border-t border-border-orca">
-        North Indian Ocean regional thermal heterogeneity comparison across eastern and western shelves.
+          <div className="text-[7.5px] text-muted-orca flex justify-between pt-1 border-t border-border-orca/60">
+            <span>Sampled Grid Points: {arabianSea?.count || 0}</span>
+            <span>Dataset: {arabianSea?.dataset_id || 'Copernicus'}</span>
+          </div>
+        </div>
+
+        {/* Bay of Bengal Card */}
+        <div className="p-3 bg-secondary-surface rounded border border-border-orca space-y-2">
+          <div className="flex items-center justify-between border-b border-border-orca pb-1.5">
+            <span className="font-bold text-primary-text flex items-center gap-1">
+              <MapPin className="w-3 h-3 text-teal-600" />
+              BAY OF BENGAL BASIN
+            </span>
+            <span className="text-[8px] text-muted-orca">8-16°N, 80-88°E</span>
+          </div>
+
+          {bayOfBengal?.statistics ? (
+            <div className="grid grid-cols-3 gap-1.5 text-center">
+              <div className="p-1.5 bg-white rounded border border-border-orca">
+                <span className="text-[7.5px] text-muted-orca block">MIN</span>
+                <span className="font-bold text-primary-text">{bayOfBengal.statistics.min.toFixed(2)}</span>
+                <span className="text-[7px] text-muted-orca">{bayOfBengal.units}</span>
+              </div>
+              <div className="p-1.5 bg-teal-50 rounded border border-teal-200">
+                <span className="text-[7.5px] text-teal-700 font-bold block">MEAN</span>
+                <span className="font-bold text-teal-700 text-sm">{bayOfBengal.statistics.mean.toFixed(2)}</span>
+                <span className="text-[7px] text-teal-700">{bayOfBengal.units}</span>
+              </div>
+              <div className="p-1.5 bg-white rounded border border-border-orca">
+                <span className="text-[7.5px] text-muted-orca block">MAX</span>
+                <span className="font-bold text-primary-text">{bayOfBengal.statistics.max.toFixed(2)}</span>
+                <span className="text-[7px] text-muted-orca">{bayOfBengal.units}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3 text-center text-muted-orca text-[8px]">
+              {loading ? 'Sampling ocean grid...' : 'No regional observations'}
+            </div>
+          )}
+
+          <div className="text-[7.5px] text-muted-orca flex justify-between pt-1 border-t border-border-orca/60">
+            <span>Sampled Grid Points: {bayOfBengal?.count || 0}</span>
+            <span>Dataset: {bayOfBengal?.dataset_id || 'Copernicus'}</span>
+          </div>
+        </div>
       </div>
     </div>
   );

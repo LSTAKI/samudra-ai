@@ -3,14 +3,13 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { getOceanTimeSeries } from '@/lib/api/ocean';
-import { TimeSeriesRecord } from '@/mock/mockOcean';
-import { Play, Pause, ChevronLeft, ChevronRight, Calendar, AlertTriangle } from 'lucide-react';
+import { fetchCopernicusTimeseries } from '@/lib/api/copernicus';
+import { Play, Pause, ChevronLeft, ChevronRight, Calendar, RefreshCw } from 'lucide-react';
 
 const PlotlyChart = dynamic(() => import('./PlotlyChart'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-32 bg-secondary-surface rounded border border-border-orca animate-pulse flex items-center justify-center text-xs text-muted-orca font-mono">
+    <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca animate-pulse flex items-center justify-center text-xs text-muted-orca font-mono">
       LOADING CHART CORE...
     </div>
   )
@@ -30,25 +29,63 @@ export default function TemporalAnalysis() {
     setIsPlaying
   } = useOrcaStore();
 
-  const [historyData, setHistoryData] = useState<TimeSeriesRecord[]>([]);
+  const [sstData, setSstData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
+  const [waveData, setWaveData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
+  const [chlData, setChlData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
+  const [slaData, setSlaData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
   const [loading, setLoading] = useState(false);
 
-  // Load history records based on selected coordinates
+  const lat = selectedCoordinates ? selectedCoordinates.lat : 9.9312;
+  const lon = selectedCoordinates ? selectedCoordinates.lng : 75.8;
+
+  // Load real Copernicus timeseries records based on selected coordinates
   useEffect(() => {
-    const fetchHistory = async () => {
-      if (!selectedCoordinates) return;
+    let mounted = true;
+    const fetchAllTimeseries = async () => {
       setLoading(true);
       try {
-        const data = await getOceanTimeSeries(selectedCoordinates.lat, selectedCoordinates.lng);
-        setHistoryData(data);
+        const [sstRes, waveRes, chlRes, slaRes] = await Promise.all([
+          fetchCopernicusTimeseries('copernicus-sst', lat, lon, undefined, undefined, 5),
+          fetchCopernicusTimeseries('copernicus-wave', lat, lon, undefined, undefined, 5),
+          fetchCopernicusTimeseries('copernicus-chl', lat, lon, undefined, undefined, 5),
+          fetchCopernicusTimeseries('copernicus-sla', lat, lon, undefined, undefined, 5),
+        ]);
+
+        if (mounted) {
+          const sstRecs = (sstRes.records || []).filter((r) => r.value !== null);
+          const waveRecs = (waveRes.records || []).filter((r) => r.value !== null);
+          const chlRecs = (chlRes.records || []).filter((r) => r.value !== null);
+          const slaRecs = (slaRes.records || []).filter((r) => r.value !== null);
+
+          setSstData({
+            x: sstRecs.map((r) => r.timestamp.slice(5, 10)),
+            y: sstRecs.map((r) => r.value as number)
+          });
+          setWaveData({
+            x: waveRecs.map((r) => r.timestamp.slice(5, 10)),
+            y: waveRecs.map((r) => r.value as number)
+          });
+          setChlData({
+            x: chlRecs.map((r) => r.timestamp.slice(5, 10)),
+            y: chlRecs.map((r) => r.value as number)
+          });
+          setSlaData({
+            x: slaRecs.map((r) => r.timestamp.slice(5, 10)),
+            y: slaRecs.map((r) => r.value as number)
+          });
+        }
       } catch (e) {
-        console.error(e);
+        console.error('Error loading timeseries in TemporalAnalysis:', e);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
-    fetchHistory();
-  }, [selectedCoordinates]);
+
+    fetchAllTimeseries();
+    return () => {
+      mounted = false;
+    };
+  }, [lat, lon]);
 
   // Timeline playback timer
   useEffect(() => {
@@ -69,13 +106,6 @@ export default function TemporalAnalysis() {
 
   const activeTimeLabel = timelineTicks[timelineIndex];
 
-  // Map history variables into separate coordinate lists for Plotly
-  const xCoords = historyData.map((rec) => rec.timestamp);
-  const sstCoords = historyData.map((rec) => rec.sst);
-  const waveCoords = historyData.map((rec) => rec.waveHeight);
-  const chlorophyllCoords = historyData.map((rec) => rec.chlorophyll);
-  const windCoords = historyData.map((rec) => rec.windSpeed);
-
   return (
     <div className="bg-white border-t border-border-orca p-3 flex flex-col space-y-2.5 font-sans select-none z-20">
       {/* Header bar */}
@@ -85,17 +115,21 @@ export default function TemporalAnalysis() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-primary-text uppercase tracking-wider font-mono">
-                TEMPORAL ANALYSIS
+                TEMPORAL OBSERVATION ANALYSIS
               </h3>
-              <span className="text-[9px] font-mono text-muted-orca bg-secondary-surface px-1.5 py-0.5 rounded border border-border-orca">
-                DEMO ANALYTICS
-              </span>
+              {loading ? (
+                <span className="text-[8px] font-mono text-orca-blue flex items-center gap-1 bg-sky-50 border border-sky-200 px-1.5 py-0.5 rounded font-bold">
+                  <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                  SYNCING NETCDF
+                </span>
+              ) : (
+                <span className="text-[8px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300 font-bold">
+                  COPERNICUS OBSERVATIONS
+                </span>
+              )}
             </div>
             <span className="text-[9px] text-muted-orca font-mono block mt-0.5">
-              Active Coordinates:{' '}
-              {selectedCoordinates
-                ? `${selectedCoordinates.lat}°N, ${selectedCoordinates.lng}°E`
-                : 'No inspection coordinates selected'}
+              Active Coordinates: [{lat.toFixed(4)}°N, {lon.toFixed(4)}°E]
             </span>
           </div>
         </div>
@@ -107,7 +141,7 @@ export default function TemporalAnalysis() {
               <button
                 key={mode}
                 onClick={() => setTimelineMode(mode)}
-                className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase transition-colors font-mono ${
+                className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase transition-colors font-mono cursor-pointer ${
                   timelineMode === mode
                     ? 'bg-white text-orca-blue shadow-sm border border-border-orca/40'
                     : 'text-secondary-text hover:text-primary-text'
@@ -183,13 +217,13 @@ export default function TemporalAnalysis() {
             <button
               onClick={() => setTimelineIndex(Math.max(0, timelineIndex - 1))}
               disabled={timelineIndex === 0}
-              className="bg-white hover:bg-secondary-surface text-primary-text border border-border-orca p-2 rounded transition-colors disabled:opacity-40"
+              className="bg-white hover:bg-secondary-surface text-primary-text border border-border-orca p-2 rounded transition-colors disabled:opacity-40 cursor-pointer"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handlePlayToggle}
-              className="flex-1 flex items-center justify-center space-x-2 bg-orca-blue hover:bg-deep-ocean text-white py-1.5 rounded text-xs font-semibold font-mono transition-colors shadow-sm"
+              className="flex-1 flex items-center justify-center space-x-2 bg-orca-blue hover:bg-deep-ocean text-white py-1.5 rounded text-xs font-semibold font-mono transition-colors shadow-sm cursor-pointer"
             >
               {isPlaying ? (
                 <>
@@ -205,7 +239,7 @@ export default function TemporalAnalysis() {
             </button>
             <button
               onClick={() => setTimelineIndex((timelineIndex + 1) % timelineTicks.length)}
-              className="bg-white hover:bg-secondary-surface text-primary-text border border-border-orca p-2 rounded transition-colors"
+              className="bg-white hover:bg-secondary-surface text-primary-text border border-border-orca p-2 rounded transition-colors cursor-pointer"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -216,54 +250,94 @@ export default function TemporalAnalysis() {
         <div className="lg:col-span-9 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <span className="text-[10px] text-secondary-text font-mono font-bold block mb-1">
-              SEA SURFACE TEMP (°C)
+              SEA SURFACE TEMP (OSTIA L4 · °C)
             </span>
-            <PlotlyChart
-              xData={xCoords}
-              yData={sstCoords}
-              yName="SST"
-              lineColor="#0645AD"
-              yUnit="°C"
-            />
+            {loading ? (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                Loading SST series...
+              </div>
+            ) : sstData.x.length > 0 ? (
+              <PlotlyChart
+                xData={sstData.x}
+                yData={sstData.y}
+                yName="SST"
+                lineColor="#0284c7"
+                yUnit="°C"
+              />
+            ) : (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                No SST observations
+              </div>
+            )}
           </div>
 
           <div>
             <span className="text-[10px] text-secondary-text font-mono font-bold block mb-1">
-              WAVE HEIGHT (m)
+              WAVE HEIGHT (WAV_001_027 · m)
             </span>
-            <PlotlyChart
-              xData={xCoords}
-              yData={waveCoords}
-              yName="Wave Height"
-              lineColor="#16834B"
-              yUnit="m"
-            />
+            {loading ? (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                Loading Wave series...
+              </div>
+            ) : waveData.x.length > 0 ? (
+              <PlotlyChart
+                xData={waveData.x}
+                yData={waveData.y}
+                yName="Wave Height"
+                lineColor="#16834B"
+                yUnit="m"
+              />
+            ) : (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                No Wave observations
+              </div>
+            )}
           </div>
 
           <div>
             <span className="text-[10px] text-secondary-text font-mono font-bold block mb-1">
-              CHLOROPHYLL-a (mg/m³)
+              CHLOROPHYLL-a (BGC L3 · mg/m³)
             </span>
-            <PlotlyChart
-              xData={xCoords}
-              yData={chlorophyllCoords}
-              yName="Chlorophyll"
-              lineColor="#D98200"
-              yUnit="mg/m³"
-            />
+            {loading ? (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                Loading Chlorophyll series...
+              </div>
+            ) : chlData.x.length > 0 ? (
+              <PlotlyChart
+                xData={chlData.x}
+                yData={chlData.y}
+                yName="Chlorophyll"
+                lineColor="#D98200"
+                yUnit="mg/m³"
+              />
+            ) : (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                No Chlorophyll observations
+              </div>
+            )}
           </div>
 
           <div>
             <span className="text-[10px] text-secondary-text font-mono font-bold block mb-1">
-              WIND SPEED (m/s)
+              SEA LEVEL ANOMALY (DUACS L4 · m)
             </span>
-            <PlotlyChart
-              xData={xCoords}
-              yData={windCoords}
-              yName="Wind Speed"
-              lineColor="#C62828"
-              yUnit="m/s"
-            />
+            {loading ? (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                Loading SLA series...
+              </div>
+            ) : slaData.x.length > 0 ? (
+              <PlotlyChart
+                xData={slaData.x}
+                yData={slaData.y}
+                yName="Sea Level Anomaly"
+                lineColor="#7c3aed"
+                yUnit="m"
+              />
+            ) : (
+              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
+                No SLA observations
+              </div>
+            )}
           </div>
         </div>
       </div>

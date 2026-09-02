@@ -126,11 +126,11 @@ export default function StatusDrawer() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-border-orca flex items-center justify-between text-[10px] text-muted-orca font-mono">
-              <span className={item.feedType === 'REAL DATA' ? 'text-success-orca font-bold' : 'text-secondary-text'}>
+              <span className={item.status === 'CONNECTED' ? 'text-success-orca font-bold' : 'text-secondary-text'}>
                 FEED: {item.feedType}
               </span>
               <span className="font-bold text-primary-text">
-                {item.status === 'CONNECTED' ? 'ACTIVE WMTS' : 'DEMO'}
+                {item.status === 'CONNECTED' ? 'ACTIVE' : 'STANDBY'}
               </span>
             </div>
           </div>

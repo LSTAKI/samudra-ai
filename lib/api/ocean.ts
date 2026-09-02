@@ -1,27 +1,47 @@
+/**
+ * Copernicus Marine Oceanographic Data API Client
+ */
 import { OceanObservation } from '../../types';
-import { mockLocations, getClosestObservation, TimeSeriesRecord } from '../../mock/mockOcean';
-import { apiRequest, delay } from './client';
+import { apiRequest } from './client';
+
+export interface TimeSeriesRecord {
+  timestamp: string;
+  sst: number;
+  waveHeight: number;
+  chlorophyll: number;
+  windSpeed: number;
+}
 
 export async function getOceanObservations(): Promise<OceanObservation[]> {
   try {
-    return await apiRequest<OceanObservation[]>('/ocean/observations');
-  } catch (e) {
-    // Mock fallback
-    await delay(200);
-    return mockLocations.map((loc) => loc.observation);
+    const res = await apiRequest<any>('ocean/layers');
+    return res.layers || [];
+  } catch {
+    return [];
   }
 }
 
 export async function getOceanObservationDetails(
   lat: number,
-  lng: number
-): Promise<OceanObservation> {
+  lng: number,
+  layerId: string = 'copernicus-sst',
+  time?: string
+): Promise<any> {
   try {
-    return await apiRequest<OceanObservation>(`/ocean/observation?lat=${lat}&lng=${lng}`);
-  } catch (e) {
-    // Mock fallback
-    await delay(150);
-    return getClosestObservation(lat, lng).observation;
+    const params = new URLSearchParams({
+      layer_id: layerId,
+      lat: lat.toString(),
+      lon: lng.toString()
+    });
+    if (time) params.append('time', time);
+    return await apiRequest(`ocean/feature-info?${params.toString()}`);
+  } catch (err: any) {
+    return {
+      status: 'UNAVAILABLE',
+      latitude: lat,
+      longitude: lng,
+      error: err.message || 'Observation query unavailable'
+    };
   }
 }
 
@@ -30,10 +50,9 @@ export async function getOceanTimeSeries(
   lng: number
 ): Promise<TimeSeriesRecord[]> {
   try {
-    return await apiRequest<TimeSeriesRecord[]>(`/ocean/timeseries?lat=${lat}&lng=${lng}`);
-  } catch (e) {
-    // Mock fallback
-    await delay(150);
-    return getClosestObservation(lat, lng).history;
+    const res = await apiRequest<any>(`ocean/timeseries?lat=${lat}&lon=${lng}`);
+    return res.records || [];
+  } catch {
+    return [];
   }
 }

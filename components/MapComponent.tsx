@@ -4,8 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { mockLocations } from '@/mock/mockOcean';
-import { mockPFZSectors, mockEEZBoundary, mockIMBLBoundary, mockIMBLWarningBuffer } from '@/mock/mockPFZ';
+import { eezBoundaryCoordinates, imblBoundaryCoordinates, imblWarningBufferCoordinates } from '@/lib/map/maritimeBoundaries';
 import {
   defaultSstConfig,
   defaultWaveConfig,
@@ -402,7 +401,7 @@ export default function MapComponent() {
           type: 'Feature',
           geometry: {
             type: 'Polygon',
-            coordinates: [mockEEZBoundary.map(coord => [coord[1], coord[0]])]
+            coordinates: [eezBoundaryCoordinates.map(coord => [coord[0], coord[1]])]
           },
           properties: {}
         }
@@ -429,7 +428,7 @@ export default function MapComponent() {
           type: 'Feature',
           geometry: {
             type: 'LineString',
-            coordinates: mockIMBLBoundary.map(coord => [coord[1], coord[0]])
+            coordinates: imblBoundaryCoordinates.map(coord => [coord[0], coord[1]])
           },
           properties: {}
         }
@@ -455,7 +454,7 @@ export default function MapComponent() {
           type: 'Feature',
           geometry: {
             type: 'LineString',
-            coordinates: mockIMBLWarningBuffer.map(coord => [coord[1], coord[0]])
+            coordinates: imblWarningBufferCoordinates.map(coord => [coord[0], coord[1]])
           },
           properties: {}
         }
@@ -473,79 +472,6 @@ export default function MapComponent() {
         layout: {
           visibility: activeMapLayers['imblBuffer'] ? 'visible' : 'none'
         }
-      });
-
-      // 5. Add PFZ Polygons
-      mockPFZSectors.forEach((sector, index) => {
-        const sourceId = `pfz-source-${index}`;
-        map.addSource(sourceId, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: {
-              type: 'Polygon',
-              coordinates: [sector.polygon.map(coord => [coord[1], coord[0]])]
-            },
-            properties: {
-              sectorName: sector.sector
-            }
-          }
-        });
-
-        // Fill layer
-        map.addLayer({
-          id: `pfz-fill-layer-${index}`,
-          type: 'fill',
-          source: sourceId,
-          paint: {
-            'fill-color': '#16834B',
-            'fill-opacity': 0.15
-          },
-          layout: {
-            visibility: activeMapLayers['pfz'] || selectedParameter === 'chlorophyll' ? 'visible' : 'none'
-          }
-        });
-
-        // Outline layer
-        map.addLayer({
-          id: `pfz-outline-layer-${index}`,
-          type: 'line',
-          source: sourceId,
-          paint: {
-            'line-color': '#16834B',
-            'line-width': 1.8
-          },
-          layout: {
-            visibility: activeMapLayers['pfz'] || selectedParameter === 'chlorophyll' ? 'visible' : 'none'
-          }
-        });
-      });
-
-      // Add markers for mock observation stations
-      mockLocations.forEach((loc) => {
-        // Create custom dot HTML element
-        const el = document.createElement('div');
-        el.className = 'w-3 h-3 bg-orca-blue rounded-full border-2 border-white cursor-pointer hover:scale-125 transition-transform shadow';
-        
-        // Popup
-        const popupHtml = `
-          <div class="font-sans">
-            <h4 class="text-xs font-bold text-primary-text font-mono">${loc.name}</h4>
-            <div class="text-[10px] text-secondary-text mt-1 space-y-0.5">
-              <div>LAT/LNG: <span class="font-mono text-primary-text font-semibold">${loc.latitude}°N, ${loc.longitude}°E</span></div>
-              <div>SST: <span class="font-mono text-primary-text font-semibold">${loc.observation.sst}°C</span></div>
-              <div>WAVE HEIGHT: <span class="font-mono text-primary-text font-semibold">${loc.observation.waveHeight}m</span></div>
-              <div>CHLOROPHYLL: <span class="font-mono text-primary-text font-semibold">${loc.observation.chlorophyll} mg/m³</span></div>
-            </div>
-          </div>
-        `;
-
-        const popup = new maplibregl.Popup({ offset: 10 }).setHTML(popupHtml);
-
-        new maplibregl.Marker({ element: el })
-          .setLngLat([loc.longitude, loc.latitude])
-          .setPopup(popup)
-          .addTo(map);
       });
     });
 
@@ -602,20 +528,6 @@ export default function MapComponent() {
     if (map.getLayer('imbl-buffer-layer')) {
       map.setLayoutProperty('imbl-buffer-layer', 'visibility', activeMapLayers['imblBuffer'] ? 'visible' : 'none');
     }
-
-    // PFZ Layers
-    mockPFZSectors.forEach((_, index) => {
-      const fillId = `pfz-fill-layer-${index}`;
-      const outlineId = `pfz-outline-layer-${index}`;
-      const isVisible = activeMapLayers['pfz'];
-      
-      if (map.getLayer(fillId)) {
-        map.setLayoutProperty(fillId, 'visibility', isVisible ? 'visible' : 'none');
-      }
-      if (map.getLayer(outlineId)) {
-        map.setLayoutProperty(outlineId, 'visibility', isVisible ? 'visible' : 'none');
-      }
-    });
   }, [activeMapLayers, selectedParameter]);
 
   // Update Layer Opacities dynamically via OceanLayerManager
@@ -964,44 +876,6 @@ export default function MapComponent() {
             <span className="text-[#ffdf9e]">
               {selectedCoordinates.lat}° N, {selectedCoordinates.lng}° E
             </span>
-          </div>
-        )}
-      </div>
-
-      {/* Compact Scientific Legend Overlay (Bottom Right Corner) */}
-      <div className="absolute bottom-3 right-3 z-10 bg-white/95 border border-border-orca p-2 rounded shadow-sm w-48 text-xs font-sans pointer-events-auto backdrop-blur-sm">
-        <div className="flex items-center justify-between border-b border-border-orca pb-1 mb-1 font-mono text-[9px]">
-          <span className="font-bold text-primary-text uppercase truncate mr-1">
-            {headerInfo.title}
-          </span>
-          <span className="text-muted-orca font-bold shrink-0">{activeLegendUnit}</span>
-        </div>
-
-        {isRealCopernicusLayerActive ? (
-          <div className="space-y-1">
-            {/* Live Copernicus legend graphic SVG */}
-            <div className="flex justify-center bg-secondary-surface p-1 rounded border border-border-orca/40 select-none">
-              <img
-                src={activeLegendUrl}
-                alt={`${headerInfo.title} Legend`}
-                onError={(e) => {
-                  console.warn('Failed to load Copernicus WMTS legend graphic');
-                }}
-                className="max-h-[110px] w-auto object-contain"
-              />
-            </div>
-            <div className="text-[8px] font-mono text-center text-success-orca font-bold">
-              ● COPERNICUS MARINE
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="h-2 w-full rounded mb-1 bg-gradient-to-r from-blue-600 via-emerald-400 via-yellow-300 to-red-600"></div>
-            <div className="flex justify-between text-[8px] text-secondary-text font-mono font-semibold">
-              <span>MIN</span>
-              <span>MID</span>
-              <span>MAX</span>
-            </div>
           </div>
         )}
       </div>

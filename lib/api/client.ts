@@ -1,34 +1,55 @@
-// API Client wrapper for Project ORCA
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+/**
+ * Unified API Client for Project ORCA
+ * Connects to the backend REST service with timeout handling,
+ * error normalization, and honest fallback states.
+ */
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+export interface ApiResponseEnvelope<T> {
+  status: 'CONNECTED' | 'LOADING' | 'DEGRADED' | 'ERROR' | 'UNAVAILABLE' | 'STALE';
+  source?: string;
+  dataset?: string;
+  observation_time?: string;
+  retrieved_at?: string;
+  data: T | null;
+  error?: string | null;
+}
 
 export async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs: number = 8000
 ): Promise<T> {
-  // If backend API URL is configured, we can perform actual fetch requests.
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    try {
-      const response = await fetch(`${BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.statusText} (${response.status})`);
-      }
-      return await response.json() as T;
-    } catch (error) {
-      console.error(`Failed to fetch from ${endpoint}:`, error);
-      throw error;
-    }
-  }
+  const url = `${BASE_URL.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  // Otherwise, we throw an error indicating backend integration is required.
-  // Visual pages will catch errors or use mock fallbacks directly to bypass this.
-  throw new Error('API client in mock-only fallback mode. No backend URL provided.');
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return (await response.json()) as T;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request to ${endpoint} timed out after ${timeoutMs / 1000}s`);
+    }
+    throw error;
+  }
 }
 
-// Utility to mock API delay
 export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

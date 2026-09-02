@@ -174,8 +174,8 @@ export default function AnalyticsControlBar() {
           );
         })}
 
-        <span className="text-[8px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded ml-1">
-          DEMO ANALYTICS
+        <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5 rounded ml-1">
+          COPERNICUS OBSERVATIONS
         </span>
       </div>
     </div>

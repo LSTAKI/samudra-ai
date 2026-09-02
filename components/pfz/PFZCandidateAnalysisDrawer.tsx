@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
-import { mockPFZZones, pfzRegionPresets } from '@/mock/mockPFZ';
+import { fetchPFZZones, PFZZone } from '@/lib/api/pfz';
+import { pfzRegionPresets } from '@/lib/map/pfzPresets';
 import PFZCandidateTable from './PFZCandidateTable';
 import PFZTemporalAnalysis from './PFZTemporalAnalysis';
 import PFZEnvironmentalCharts from './PFZEnvironmentalCharts';
@@ -18,16 +19,34 @@ import {
 type PFZTab = 'table' | 'temporal' | 'charts';
 
 export default function PFZCandidateAnalysisDrawer() {
-  const { selectedPFZRegion, selectedTimestamp } = useOrcaStore();
+  const { selectedPFZRegion, selectedLatitude, selectedLongitude } = useOrcaStore();
   const [activeTab, setActiveTab] = useState<PFZTab>('table');
   const [collapsed, setCollapsed] = useState(false);
+  const [zones, setZones] = useState<PFZZone[]>([]);
 
   const region =
     pfzRegionPresets.find((r) => r.id === selectedPFZRegion) || pfzRegionPresets[0];
 
-  const highCount = mockPFZZones.filter((z) => z.classification === 'HIGH').length;
-  const modCount = mockPFZZones.filter((z) => z.classification === 'MODERATE').length;
-  const lowCount = mockPFZZones.filter((z) => z.classification === 'LOW').length;
+  useEffect(() => {
+    let mounted = true;
+    fetchPFZZones(
+      selectedLatitude || region.centerLat,
+      selectedLongitude || region.centerLng,
+      region.harbor
+    ).then((res) => {
+      if (mounted && res.zones) {
+        setZones(res.zones);
+      }
+    }).catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedPFZRegion, selectedLatitude, selectedLongitude]);
+
+  const highCount = zones.filter((z) => z.classification === 'HIGH').length;
+  const modCount = zones.filter((z) => z.classification === 'MODERATE').length;
+  const lowCount = zones.filter((z) => z.classification === 'LOW').length;
 
   return (
     <div className="bg-white border-t border-border-orca select-none font-sans z-20 shrink-0 transition-all">
@@ -42,7 +61,7 @@ export default function PFZCandidateAnalysisDrawer() {
             </span>
             <span className="text-muted-orca">·</span>
             <span className="text-secondary-text">
-              {mockPFZZones.length} CANDIDATES (High: {highCount}, Mod: {modCount}, Low: {lowCount})
+              {zones.length} CANDIDATES (High: {highCount}, Mod: {modCount}, Low: {lowCount})
             </span>
           </div>
 
@@ -54,7 +73,7 @@ export default function PFZCandidateAnalysisDrawer() {
                 setActiveTab('table');
                 if (collapsed) setCollapsed(false);
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all cursor-pointer ${
                 activeTab === 'table' && !collapsed
                   ? 'bg-white border border-border-orca text-orca-blue font-bold shadow-xs'
                   : 'text-secondary-text hover:text-primary-text hover:bg-white/60'
@@ -70,14 +89,14 @@ export default function PFZCandidateAnalysisDrawer() {
                 setActiveTab('temporal');
                 if (collapsed) setCollapsed(false);
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all cursor-pointer ${
                 activeTab === 'temporal' && !collapsed
                   ? 'bg-white border border-border-orca text-orca-blue font-bold shadow-xs'
                   : 'text-secondary-text hover:text-primary-text hover:bg-white/60'
               }`}
             >
               <Clock className="w-3 h-3" />
-              <span>TEMPORAL ANALYSIS</span>
+              <span>TEMPORAL TRENDS</span>
             </button>
 
             <button
@@ -86,38 +105,32 @@ export default function PFZCandidateAnalysisDrawer() {
                 setActiveTab('charts');
                 if (collapsed) setCollapsed(false);
               }}
-              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all ${
+              className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-mono transition-all cursor-pointer ${
                 activeTab === 'charts' && !collapsed
                   ? 'bg-white border border-border-orca text-orca-blue font-bold shadow-xs'
                   : 'text-secondary-text hover:text-primary-text hover:bg-white/60'
               }`}
             >
               <BarChart3 className="w-3 h-3" />
-              <span>ENVIRONMENTAL COMPARISON</span>
+              <span>ENVIRONMENTAL PROFILES</span>
             </button>
           </div>
         </div>
 
-        {/* Right Header: Collapse Toggle */}
-        <div className="flex items-center space-x-3">
-          <span className="text-[9px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-bold">
-            DEMO ANALYSIS
-          </span>
-
-          <button
-            type="button"
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 text-secondary-text hover:text-primary-text hover:bg-white rounded transition-colors"
-            title={collapsed ? 'Expand Drawer' : 'Collapse Drawer'}
-          >
-            {collapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-        </div>
+        {/* Collapse Drawer Toggle */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-1.5 hover:bg-white rounded border border-border-orca text-secondary-text hover:text-primary-text transition-colors cursor-pointer"
+          title={collapsed ? 'Expand Drawer' : 'Collapse Drawer'}
+        >
+          {collapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
       </div>
 
       {/* Drawer Body */}
       {!collapsed && (
-        <div className="h-44 bg-white flex items-center justify-between overflow-hidden">
+        <div className="h-64 p-3 bg-white overflow-hidden">
           {activeTab === 'table' && <PFZCandidateTable />}
           {activeTab === 'temporal' && <PFZTemporalAnalysis />}
           {activeTab === 'charts' && <PFZEnvironmentalCharts />}

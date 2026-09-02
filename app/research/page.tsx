@@ -8,6 +8,7 @@ import OceanPointInspector from '@/components/ocean/OceanPointInspector';
 import OceanTimeSeries from '@/components/ocean/OceanTimeSeries';
 import TemporalAnalysis from '@/components/TemporalAnalysis';
 import { X } from 'lucide-react';
+import ResearchAssistant from '@/components/ResearchAssistant';
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,

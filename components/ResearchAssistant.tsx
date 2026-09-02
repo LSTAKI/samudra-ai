@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 import { askOrcaAI } from '@/lib/api/ai';
-import ConsensusCard from './ConsensusCard';
-import ProvenanceCard from './ProvenanceCard';
-import { Terminal, Send, HelpCircle, Loader2, RefreshCw, Layers, Compass, CheckCircle2 } from 'lucide-react';
+import { Terminal, Send, HelpCircle, Loader2, Layers, Compass, Database, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Consensus, Provenance } from '@/types';
 
 const suggestedQueries = [
   'Why is SST elevated near Kerala?',
@@ -14,6 +13,78 @@ const suggestedQueries = [
   'Compare ISRO and NOAA observations.',
   'Is there a marine heatwave?'
 ];
+
+function InlineConsensusCard({ consensus }: { consensus: Consensus }) {
+  return (
+    <div className="bg-white border border-border-orca rounded p-3 flex flex-col space-y-2 font-sans select-none text-primary-text">
+      <div className="flex items-center justify-between border-b border-border-orca pb-1.5 font-mono text-[9px]">
+        <div className="flex items-center space-x-1.5 font-bold">
+          <Layers className="w-3.5 h-3.5 text-orca-blue" />
+          <span>MULTI-SENSOR CONSENSUS (QA/QC)</span>
+        </div>
+        <span className="font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-300">
+          {consensus.confidence}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-1.5 font-mono text-[9px]">
+        {consensus.values.map((v, i) => (
+          <div key={i} className="bg-secondary-surface border border-border-orca/80 p-1.5 rounded text-center">
+            <span className="text-[8px] text-muted-orca uppercase block truncate">
+              {v.sensor}
+            </span>
+            <span className="text-[10px] font-bold text-primary-text block mt-0.5">
+              {v.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-1 border-t border-border-orca text-[9px] font-mono">
+        <span className="text-secondary-text">CONSENSUS VALUE:</span>
+        <span className="font-bold text-orca-blue bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+          {consensus.consensusValue}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function InlineProvenanceCard({ provenance }: { provenance: Provenance }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white border border-border-orca rounded flex flex-col select-none text-primary-text text-[9px] font-mono">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-2 hover:bg-secondary-surface text-left transition-colors cursor-pointer"
+      >
+        <div className="flex items-center space-x-1.5">
+          <Database className="w-3 h-3 text-orca-blue" />
+          <span className="font-bold truncate max-w-[180px]">
+            {provenance.source} • {provenance.dataset}
+          </span>
+        </div>
+        <div className="flex items-center space-x-1">
+          <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1 rounded border border-emerald-200">
+            {provenance.confidence}
+          </span>
+          {isOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="p-2 border-t border-border-orca bg-secondary-surface/40 space-y-1 text-[8.5px] text-secondary-text">
+          <div><span className="font-bold text-primary-text">Coordinates:</span> {provenance.coordinates}</div>
+          <div><span className="font-bold text-primary-text">Timestamp:</span> {provenance.timestamp}</div>
+          <div><span className="font-bold text-primary-text">Processing:</span> {provenance.processing}</div>
+          <div><span className="font-bold text-primary-text">Validation:</span> {provenance.validation}</div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ResearchAssistant() {
   const {
@@ -58,12 +129,12 @@ export default function ResearchAssistant() {
   const getConfidenceColor = (level: string) => {
     switch (level) {
       case 'HIGH':
-        return 'text-success-orca';
+        return 'text-emerald-400';
       case 'MEDIUM':
-        return 'text-warning-orca';
+        return 'text-amber-400';
       case 'LOW':
       default:
-        return 'text-danger-orca';
+        return 'text-blue-400';
     }
   };
 
@@ -71,7 +142,7 @@ export default function ResearchAssistant() {
     return (
       <button
         onClick={toggleAssistant}
-        className="fixed right-0 top-[calc(64px+16px)] z-40 bg-ocean-navy text-white p-2 border-y border-l border-[#1b3459] rounded-l-md hover:bg-orca-blue transition-colors focus:outline-none font-mono text-xs flex items-center gap-1.5"
+        className="fixed right-0 top-[calc(64px+16px)] z-40 bg-ocean-navy text-white p-2 border-y border-l border-[#1b3459] rounded-l-md hover:bg-orca-blue transition-colors focus:outline-none font-mono text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
         title="Open Ask ORCA Panel"
       >
         <Terminal className="w-4 h-4" />
@@ -91,7 +162,7 @@ export default function ResearchAssistant() {
               ASK ORCA
             </h2>
             <span className="text-[9px] text-muted-orca font-mono block">
-              Ocean intelligence Reasoning Engine
+              Ocean Intelligence Gateway
             </span>
           </div>
         </div>
@@ -99,7 +170,7 @@ export default function ResearchAssistant() {
           {aiMessages.length > 0 && (
             <button
               onClick={clearMessages}
-              className="text-muted-orca hover:text-white p-1 hover:bg-[#12315b] rounded text-[10px] font-mono border border-[#1b3459] transition-all"
+              className="text-muted-orca hover:text-white p-1 hover:bg-[#12315b] rounded text-[10px] font-mono border border-[#1b3459] transition-all cursor-pointer"
               title="Clear Terminal Logs"
             >
               CLEAR
@@ -107,10 +178,10 @@ export default function ResearchAssistant() {
           )}
           <button
             onClick={toggleAssistant}
-            className="text-muted-orca hover:text-white p-1 hover:bg-[#12315b] rounded transition-colors"
+            className="text-muted-orca hover:text-white p-1 hover:bg-[#12315b] rounded transition-colors text-[10px] font-mono cursor-pointer"
             title="Minimize Assistant"
           >
-            Minimize
+            MINIMIZE
           </button>
         </div>
       </div>
@@ -126,7 +197,7 @@ export default function ResearchAssistant() {
             <div className="space-y-1">
               <h3 className="font-bold text-white uppercase text-xs">Scientific Query Terminal</h3>
               <p className="text-[10px] text-secondary-text leading-relaxed max-w-[280px]">
-                Submit questions about SST anomalies, chlorophyll convergence fronts, or sensor cross-calibration pipelines.
+                Submit questions about SST anomalies, chlorophyll convergence fronts, or Copernicus satellite ingestion feeds.
               </p>
             </div>
 
@@ -140,7 +211,7 @@ export default function ResearchAssistant() {
                   <button
                     key={idx}
                     onClick={() => handleSubmit(q)}
-                    className="w-full text-left bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] p-2 rounded border border-[#173863] text-[10px] truncate leading-snug transition-colors"
+                    className="w-full text-left bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] p-2 rounded border border-[#173863] text-[10px] truncate leading-snug transition-colors cursor-pointer"
                   >
                     &gt; {q}
                   </button>
@@ -169,9 +240,7 @@ export default function ResearchAssistant() {
 
             {/* Scientific Consensus card */}
             {msg.consensus && (
-              <div className="text-primary-text rounded-md overflow-hidden bg-white">
-                <ConsensusCard consensus={msg.consensus} />
-              </div>
+              <InlineConsensusCard consensus={msg.consensus} />
             )}
 
             {/* Scientific Confidence metrics */}
@@ -190,31 +259,11 @@ export default function ResearchAssistant() {
                 </span>
                 <div className="space-y-1">
                   {msg.provenance.map((prov, pidx) => (
-                    <div key={pidx} className="text-primary-text rounded overflow-hidden">
-                      <ProvenanceCard provenance={prov} />
-                    </div>
+                    <InlineProvenanceCard key={pidx} provenance={prov} />
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Actions buttons */}
-            <div className="flex items-center gap-2 pt-2 text-[10px]">
-              <button
-                className="bg-[#0b2447] hover:bg-[#123666] border border-[#1c4b82] text-white px-2.5 py-1 rounded flex items-center gap-1 transition-all"
-                onClick={() => alert(`Showing parameters on map for question: ${msg.question}`)}
-              >
-                <Compass className="w-3 h-3" />
-                SHOW ON MAP
-              </button>
-              <button
-                className="bg-[#0b2447] hover:bg-[#123666] border border-[#1c4b82] text-white px-2.5 py-1 rounded flex items-center gap-1 transition-all"
-                onClick={() => alert(`Retrieving dataset metadata validation: ${msg.provenance?.[0]?.dataset || 'SST'}`)}
-              >
-                <Layers className="w-3 h-3" />
-                VIEW SOURCES
-              </button>
-            </div>
           </div>
         ))}
 
@@ -222,7 +271,7 @@ export default function ResearchAssistant() {
         {loading && (
           <div className="flex items-center space-x-2 text-orca-blue font-mono font-bold animate-pulse">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>orca-agent compiling ocean layers consensus...</span>
+            <span>orca-agent querying operational gateway...</span>
           </div>
         )}
       </div>
@@ -247,7 +296,7 @@ export default function ResearchAssistant() {
         <button
           type="submit"
           disabled={loading}
-          className="bg-orca-blue hover:bg-[#085ae6] text-white p-2 rounded transition-colors disabled:opacity-50 flex items-center justify-center"
+          className="bg-orca-blue hover:bg-[#085ae6] text-white p-2 rounded transition-colors disabled:opacity-50 flex items-center justify-center cursor-pointer"
         >
           <Send className="w-4 h-4" />
         </button>

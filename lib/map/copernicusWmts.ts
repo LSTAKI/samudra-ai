@@ -46,12 +46,12 @@ export const defaultWaveConfig: CopernicusLayerConfig = {
   visible: false
 };
 
-// Verified Copernicus Marine Sea Level Anomaly Layer (DUACS Two-Sat)
+// Verified Copernicus Marine Sea Level Anomaly Layer (DUACS NRT)
 export const defaultSeaLevelConfig: CopernicusLayerConfig = {
   id: 'copernicus-sla',
   name: 'Sea Level Anomaly',
-  productId: 'SEALEVEL_GLO_PHY_CLIMATE_L4_MY_008_057',
-  datasetId: 'c3s_obs-sl_glo_phy-ssh_my_twosat-l4-duacs-0.25deg_P1D_202411',
+  productId: 'SEALEVEL_GLO_PHY_L4_NRT_008_046',
+  datasetId: 'cmems_obs-sl_glo_phy-ssh_nrt_allsat-l4-duacs-0.125deg_P1D_202506',
   variable: 'sla',
   unit: 'm',
   tileMatrixSet: 'EPSG:3857',
@@ -62,12 +62,12 @@ export const defaultSeaLevelConfig: CopernicusLayerConfig = {
   visible: false
 };
 
-// Verified Copernicus Marine Chlorophyll-a Layer (BGC Plankton)
+// Verified Copernicus Marine Chlorophyll-a Layer (BGC Plankton NRT L4 Gapfree)
 export const defaultChlorophyllConfig: CopernicusLayerConfig = {
   id: 'copernicus-chl',
   name: 'Chlorophyll-a Concentration',
-  productId: 'OCEANCOLOUR_GLO_BGC_L3_MY_009_107',
-  datasetId: 'c3s_obs-oc_glo_bgc-plankton_my_l3-multi-4km_P1D_202303',
+  productId: 'OCEANCOLOUR_GLO_BGC_L4_NRT_009_102',
+  datasetId: 'cmems_obs-oc_glo_bgc-plankton_nrt_l4-gapfree-multi-4km_P1D_202311',
   variable: 'CHL',
   unit: 'mg/m³',
   tileMatrixSet: 'EPSG:3857',

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, Search, ShieldAlert, User, Menu } from 'lucide-react';
+import { Activity, Search } from 'lucide-react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 
 const navItems = [
@@ -70,24 +70,13 @@ export default function Navigation() {
         {/* Status indicator */}
         <button
           onClick={toggleStatusDrawer}
-          className="flex items-center space-x-2 bg-[#0d2547] border border-[#1b3459] hover:bg-[#12315b] hover:border-orca-blue px-3 py-1.5 rounded-md text-xs font-mono transition-all active:scale-95"
+          className="flex items-center space-x-2 bg-[#0d2547] border border-[#1b3459] hover:bg-[#12315b] hover:border-orca-blue px-3 py-1.5 rounded-md text-xs font-mono transition-all active:scale-95 cursor-pointer"
           title="Open System Status"
         >
           <Activity className="w-3.5 h-3.5 text-success-orca" />
           <span className="text-white hidden lg:inline">SYSTEM STATUS</span>
           <span className="w-1.5 h-1.5 rounded-full bg-success-orca inline-block"></span>
         </button>
-
-        {/* User profile */}
-        <div className="flex items-center space-x-2 border-l border-[#1b3459] pl-4">
-          <div className="w-8 h-8 rounded-full bg-deep-ocean border border-orca-blue flex items-center justify-center text-white text-xs font-bold font-mono">
-            ISRO
-          </div>
-          <div className="hidden lg:flex flex-col text-left">
-            <span className="text-xs font-semibold leading-tight">Dr. A. Kurian</span>
-            <span className="text-[9px] text-muted-orca font-mono">Principal Scientist</span>
-          </div>
-        </div>
       </div>
     </header>
   );

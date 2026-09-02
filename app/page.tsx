@@ -51,9 +51,9 @@ export default function HomePage() {
 
           <div className="bg-[#0b1f3a]/80 border border-[#1b3459] p-5 rounded-lg">
             <Cpu className="w-6 h-6 text-[#16834B] mb-3" />
-            <h3 className="text-xs font-bold font-mono text-white uppercase">Collaborative AI Reasoning</h3>
+            <h3 className="text-xs font-bold font-mono text-white uppercase">Multi-Sensor Earth Observation</h3>
             <p className="text-[11px] text-muted-orca mt-1 leading-normal font-sans">
-              Ask ORCA questions to generate multi-sensor data consensus validations and trace historical provenance paths.
+              Copernicus Marine and MOSDAC multi-sensor satellite observation pipelines and real-time spatial analysis.
             </p>
           </div>
 

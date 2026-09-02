@@ -8,7 +8,6 @@ import OceanPointInspector from '@/components/ocean/OceanPointInspector';
 import OceanTimeSeries from '@/components/ocean/OceanTimeSeries';
 import TemporalAnalysis from '@/components/TemporalAnalysis';
 import { X } from 'lucide-react';
-import ResearchAssistant from '@/components/ResearchAssistant';
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   ssr: false,
@@ -64,9 +63,6 @@ export default function ResearchPage() {
             </div>
           )}
         </div>
-
-        {/* Right: Collapsible Ask ORCA AI reasoning terminal */}
-        <ResearchAssistant />
       </div>
 
       {/* Bottom: Temporal analysis and charts */}

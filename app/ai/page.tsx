@@ -357,9 +357,11 @@ export default function OrcaAiPage() {
               {/* Welcome State when conversation has no messages */}
               {activeMessages.length === 0 && (
                 <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 py-8 space-y-6 font-sans">
-                  <div className="w-16 h-16 rounded-2xl bg-orca-blue/10 border-2 border-orca-blue/40 flex items-center justify-center text-orca-blue shadow-xl">
-                    <Bot className="w-8 h-8" />
-                  </div>
+                  <img
+                    src="/logo.png"
+                    alt="Samudra AI Logo"
+                    className="w-20 h-20 rounded-2xl border-2 border-orca-blue/50 shadow-2xl object-cover ring-2 ring-orca-blue/20"
+                  />
 
                   <div className="space-y-2 max-w-lg">
                     <span className="text-[11px] font-mono text-orca-blue font-bold uppercase tracking-widest block">

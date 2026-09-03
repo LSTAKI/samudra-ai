@@ -162,9 +162,11 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
         {/* Assistant Header Bar */}
         <div className="flex items-center justify-between border-b border-[#1b3459] pb-2.5 text-[10px] font-mono">
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded bg-orca-blue/20 border border-orca-blue/50 flex items-center justify-center text-orca-blue shadow-xs">
-              <Bot className="w-3.5 h-3.5" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Samudra AI Logo"
+              className="w-5 h-5 rounded-full border border-orca-blue/60 object-cover shadow-xs"
+            />
             <span className="font-bold text-white uppercase tracking-wider text-[11px]">
               SAMUDRA AI ASSISTANT
             </span>

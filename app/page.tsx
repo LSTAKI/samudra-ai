@@ -10,9 +10,11 @@ export default function HomePage() {
       {/* Brand logo container */}
       <div className="relative z-10 max-w-4xl text-center space-y-8 flex flex-col items-center">
         <div className="flex flex-col items-center space-y-2">
-          <div className="w-16 h-16 rounded-full bg-orca-blue flex items-center justify-center border-4 border-[#1b3459] shadow-lg animate-pulse mb-2">
-            <span className="w-5 h-5 bg-white rounded-full"></span>
-          </div>
+          <img
+            src="/logo.png"
+            alt="Samudra AI Logo"
+            className="w-24 h-24 rounded-full border-4 border-orca-blue/40 shadow-2xl mb-3 object-cover ring-4 ring-orca-blue/20 hover:scale-105 transition-transform"
+          />
           <span className="text-[11px] text-orca-blue font-mono tracking-[0.25em] uppercase font-bold">
             SAMUDRA AI • OCEAN INTELLIGENCE
           </span>

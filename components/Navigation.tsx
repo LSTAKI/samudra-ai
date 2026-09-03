@@ -23,14 +23,20 @@ export default function Navigation() {
     <header className="h-16 bg-ocean-navy border-b border-[#1b3459] text-white flex items-center justify-between px-6 z-50 select-none">
       {/* Left: Brand */}
       <div className="flex items-center space-x-3">
-        <Link href="/" className="flex flex-col items-start leading-none group">
-          <span className="text-xl font-bold tracking-wider text-white flex items-center gap-1.5 font-mono">
-            <span className="w-2.5 h-2.5 bg-orca-blue rounded-full animate-pulse inline-block"></span>
-            SAMUDRA AI
-          </span>
-          <span className="text-[10px] text-muted-orca font-mono tracking-widest mt-0.5 uppercase">
-            Ocean Intelligence
-          </span>
+        <Link href="/" className="flex items-center space-x-2.5 group">
+          <img
+            src="/logo.png"
+            alt="Samudra AI Logo"
+            className="w-8 h-8 rounded-full border border-orca-blue/50 shadow-sm object-cover group-hover:scale-105 transition-transform"
+          />
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-lg font-bold tracking-wider text-white font-mono">
+              SAMUDRA AI
+            </span>
+            <span className="text-[9.5px] text-muted-orca font-mono tracking-widest mt-0.5 uppercase">
+              Ocean Intelligence
+            </span>
+          </div>
         </Link>
       </div>
 

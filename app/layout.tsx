@@ -20,6 +20,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: 'Samudra AI — Ocean Intelligence',
   description: 'Samudra AI — Ocean intelligence for marine conditions, hazards, ocean data and decision support.',
+  icons: [{ rel: 'icon', url: '/logo.png' }],
 };
 
 export default function RootLayout({

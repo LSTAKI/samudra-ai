@@ -176,6 +176,7 @@ export default function ChatComposer({
         <button
           type="button"
           onClick={() => setShowLocPicker(!showLocPicker)}
+          aria-label="Attach location context (latitude, longitude)"
           className={`p-2.5 rounded-md border transition-all cursor-pointer ${
             location
               ? 'bg-orca-blue text-white border-orca-blue'
@@ -195,6 +196,7 @@ export default function ChatComposer({
             onKeyDown={handleKeyDown}
             placeholder="Ask Samudra AI about marine conditions, SST, waves, hazards, or PFZ..."
             disabled={isLoading}
+            aria-label="Ask Samudra AI about marine conditions"
             className="w-full bg-[#051124] border border-[#1b3459] rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-secondary-text focus:outline-none focus:border-orca-blue font-sans resize-none disabled:opacity-50 min-h-[42px] max-h-[160px] leading-relaxed"
           />
         </div>
@@ -202,6 +204,7 @@ export default function ChatComposer({
         <button
           type="submit"
           disabled={!text.trim() || isLoading}
+          aria-label="Send query"
           className="bg-orca-blue hover:bg-[#085ae6] text-white p-2.5 rounded-md font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer shadow-md shrink-0 h-[42px] w-[42px]"
           title="Send query (Enter)"
         >

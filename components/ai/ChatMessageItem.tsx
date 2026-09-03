@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Bot,
   User,
@@ -10,11 +10,14 @@ import {
   Compass,
   Layers,
   Clock,
-  CheckCircle2,
-  HelpCircle,
-  FileText
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
+  Activity,
+  Waves,
+  Thermometer
 } from 'lucide-react';
-import { ChatResponseData, ChatSource, ChatEvidence, ChatHazard } from '@/lib/api/chat';
+import { ChatResponseData, ChatSource, ChatHazard } from '@/lib/api/chat';
 
 export interface ChatMessage {
   id: string;
@@ -28,10 +31,71 @@ export interface ChatMessage {
 
 interface ChatMessageItemProps {
   message: ChatMessage;
-  onSelectPrompt?: (prompt: string) => void;
+  onRetry?: () => void;
 }
 
-export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessageItemProps) {
+interface MetricTile {
+  label: string;
+  value: string;
+  unit?: string;
+}
+
+/**
+ * Safely extracts structured numerical marine metrics from observation text.
+ * Falls back to bullet list for any unparsed or non-standard sentences.
+ */
+function parseObservationMetrics(observations: string[]): { metrics: MetricTile[]; bullets: string[] } {
+  const metrics: MetricTile[] = [];
+  const bullets: string[] = [];
+
+  observations.forEach((obs) => {
+    let matched = false;
+
+    // 1. Sea Surface Temperature
+    const sstMatch = obs.match(/Sea surface temperature is ([\d.]+\s*°?C)/i);
+    if (sstMatch) {
+      metrics.push({ label: 'SEA SURFACE TEMP', value: sstMatch[1] });
+      matched = true;
+    }
+
+    // 2. Wave Height & Period
+    const waveHeightMatch = obs.match(/Wave height is ([\d.]+\s*m)/i);
+    if (waveHeightMatch) {
+      metrics.push({ label: 'WAVE HEIGHT', value: waveHeightMatch[1] });
+      matched = true;
+    }
+
+    const wavePeriodMatch = obs.match(/period of ([\d.]+\s*s)/i);
+    if (wavePeriodMatch) {
+      metrics.push({ label: 'WAVE PERIOD', value: wavePeriodMatch[1] });
+      matched = true;
+    }
+
+    // 3. Ocean Current
+    const currentMatch = obs.match(/Ocean current speed is ([\d.]+\s*km\/h|[\d.]+\s*m\/s)/i);
+    if (currentMatch) {
+      metrics.push({ label: 'CURRENT SPEED', value: currentMatch[1] });
+      matched = true;
+    }
+
+    // 4. Wind Speed
+    const windMatch = obs.match(/wind speed is ([\d.]+\s*km\/h|[\d.]+\s*knots)/i);
+    if (windMatch) {
+      metrics.push({ label: 'WIND SPEED', value: windMatch[1] });
+      matched = true;
+    }
+
+    if (!matched) {
+      bullets.push(obs);
+    }
+  });
+
+  return { metrics, bullets };
+}
+
+export default function ChatMessageItem({ message, onRetry }: ChatMessageItemProps) {
+  const [sourcesExpanded, setSourcesExpanded] = useState(false);
+
   const isUser = message.sender === 'user';
   const isSystem = message.sender === 'system';
 
@@ -48,11 +112,11 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
 
   if (isUser) {
     return (
-      <div className="flex justify-end my-4 select-text">
-        <div className="max-w-[85%] sm:max-w-[70%] bg-orca-blue text-white rounded-lg p-3.5 shadow-md border border-[#2b7bf5]/40 space-y-1 font-sans">
+      <div className="flex justify-end my-3 select-text">
+        <div className="max-w-[90%] sm:max-w-xl bg-orca-blue text-white rounded-lg p-3 sm:p-3.5 shadow-md border border-[#2b7bf5]/40 space-y-1 font-sans">
           <div className="flex items-center justify-between gap-4 text-[10px] font-mono text-blue-100/80 border-b border-blue-400/30 pb-1">
             <span className="font-bold uppercase tracking-wider flex items-center gap-1">
-              <User className="w-3 h-3" /> USER QUERY
+              <User className="w-3 h-3" /> USER
             </span>
             <span>{message.timestamp}</span>
           </div>
@@ -66,34 +130,39 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
   const data = message.data;
   const answer = data?.answer;
   const sources = data?.sources || [];
-  const evidence = data?.evidence || [];
   const hazards = data?.hazards || [];
   const dataQuality = data?.data_quality;
 
+  const observations = answer?.observations || [];
+  const recommendations = answer?.recommendations || [];
+  const { metrics, bullets: observationBullets } = parseObservationMetrics(observations);
+
   return (
     <div className="flex justify-start my-4 select-text">
-      <div className="w-full max-w-[95%] sm:max-w-[85%] bg-ocean-navy border border-[#1b3459] text-[#e1e9f5] rounded-lg p-4 shadow-lg space-y-4 font-sans">
-        {/* Header bar */}
-        <div className="flex items-center justify-between border-b border-[#1b3459] pb-2 text-[10px] font-mono">
+      <div className="w-full max-w-[95%] sm:max-w-3xl bg-ocean-navy border border-[#1b3459] text-[#e1e9f5] rounded-lg p-4 sm:p-5 shadow-xl space-y-4 font-sans">
+        {/* Assistant Header Bar */}
+        <div className="flex items-center justify-between border-b border-[#1b3459] pb-2.5 text-[10px] font-mono">
           <div className="flex items-center space-x-2">
-            <div className="w-5 h-5 rounded bg-orca-blue/20 border border-orca-blue/50 flex items-center justify-center text-orca-blue">
+            <div className="w-6 h-6 rounded bg-orca-blue/20 border border-orca-blue/50 flex items-center justify-center text-orca-blue shadow-xs">
               <Bot className="w-3.5 h-3.5" />
             </div>
-            <span className="font-bold text-white uppercase tracking-wider">SAMUDRA AI ASSISTANT</span>
-            {data?.conversation_id && (
-              <span className="text-muted-orca bg-[#07162c] px-1.5 py-0.5 rounded border border-[#1b3459]">
-                ID: {data.conversation_id}
-              </span>
-            )}
+            <span className="font-bold text-white uppercase tracking-wider text-[11px]">
+              SAMUDRA AI ASSISTANT
+            </span>
           </div>
+
           <div className="flex items-center space-x-2 text-muted-orca">
             {answer?.status && (
-              <span className={`px-1.5 py-0.5 rounded font-bold uppercase ${
-                answer.status === 'low' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
-                answer.status === 'moderate' ? 'bg-amber-950 text-amber-400 border border-amber-800' :
-                'bg-rose-950 text-rose-400 border border-rose-800'
-              }`}>
-                RISK: {answer.status}
+              <span
+                className={`px-2 py-0.5 rounded font-bold uppercase text-[9px] ${
+                  answer.status === 'low'
+                    ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                    : answer.status === 'moderate'
+                    ? 'bg-amber-950/80 text-amber-400 border border-amber-800'
+                    : 'bg-rose-950/80 text-rose-400 border border-rose-800'
+                }`}
+              >
+                STATUS: {answer.status.toUpperCase()}
               </span>
             )}
             <span>{message.timestamp}</span>
@@ -102,28 +171,40 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
 
         {/* Loading state */}
         {message.isLoading && !message.error && !answer?.summary && (
-          <div className="flex items-center space-x-2.5 text-orca-blue font-mono text-xs py-3 animate-pulse">
-            <div className="w-3.5 h-3.5 border-2 border-orca-blue border-t-transparent rounded-full animate-spin"></div>
-            <span>Querying Samudra AI Marine Intelligence...</span>
+          <div className="flex items-center space-x-3 text-orca-blue font-mono text-xs py-4">
+            <div className="w-4 h-4 border-2 border-orca-blue border-t-transparent rounded-full animate-spin"></div>
+            <span className="animate-pulse">SAMUDRA AI IS ANALYZING... Retrieving marine intelligence...</span>
           </div>
         )}
 
         {/* Error message */}
         {message.error && (
-          <div className="bg-rose-950/60 border border-rose-800/80 rounded p-3 text-rose-200 text-xs font-mono space-y-1">
-            <div className="flex items-center space-x-1.5 font-bold text-rose-300">
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>SAMUDRA AI SERVICE FAILURE</span>
+          <div className="bg-rose-950/60 border border-rose-800/80 rounded-md p-3.5 text-rose-200 text-xs font-mono space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2 font-bold text-rose-300">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>SAMUDRA AI SERVICE FAILURE</span>
+              </div>
+              {onRetry && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="flex items-center space-x-1 px-2.5 py-1 rounded bg-rose-900/80 hover:bg-rose-800 text-white font-bold text-[10px] transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>RETRY QUERY</span>
+                </button>
+              )}
             </div>
-            <p className="text-[11px] leading-relaxed">{message.error}</p>
+            <p className="text-[11px] leading-relaxed text-rose-200/90">{message.error}</p>
           </div>
         )}
 
-        {/* Answer Summary */}
+        {/* Executive Summary */}
         {answer?.summary && (
-          <div className="space-y-1.5">
-            <span className="text-[9.5px] font-mono text-orca-blue font-bold uppercase tracking-wider block">
-              [EXECUTIVE SUMMARY]
+          <div className="space-y-1.5 bg-[#081b36] p-3.5 rounded-md border border-[#1c3f6e]">
+            <span className="text-[10px] font-mono text-orca-blue font-bold uppercase tracking-wider block">
+              EXECUTIVE SUMMARY
             </span>
             <p className="text-xs sm:text-sm text-slate-100 leading-relaxed font-sans font-normal">
               {answer.summary}
@@ -131,22 +212,42 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
           </div>
         )}
 
-        {/* Simple text fallback if no structured answer */}
-        {!answer?.summary && message.text && !message.isLoading && (
+        {/* Text Fallback if no structured answer summary */}
+        {!answer?.summary && message.text && !message.isLoading && !message.error && (
           <p className="text-xs sm:text-sm text-slate-100 leading-relaxed font-sans">
             {message.text}
           </p>
         )}
 
+        {/* Parsed Metric Cards (if structured observations exist) */}
+        {metrics.length > 0 && (
+          <div className="space-y-1.5">
+            <span className="text-[9.5px] font-mono text-muted-orca font-bold uppercase tracking-wider block">
+              SAMPLED OCEAN PARAMETERS
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
+              {metrics.map((m, idx) => (
+                <div
+                  key={idx}
+                  className="bg-[#051326] border border-[#1b3459] p-2.5 rounded text-center space-y-0.5 shadow-xs"
+                >
+                  <span className="text-[8.5px] text-muted-orca uppercase block truncate">{m.label}</span>
+                  <span className="text-sm font-bold text-white block">{m.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Observations list */}
-        {answer?.observations && answer.observations.length > 0 && (
-          <div className="space-y-2 bg-[#061830] p-3 rounded border border-[#1b3459]">
+        {observationBullets.length > 0 && (
+          <div className="space-y-2 bg-[#051326] p-3 rounded-md border border-[#1b3459]">
             <span className="text-[9.5px] font-mono text-[#a4c2f4] font-bold uppercase tracking-wider block flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5 text-orca-blue" />
               VERIFIED OCEAN OBSERVATIONS
             </span>
             <ul className="space-y-1.5 text-xs text-slate-200">
-              {answer.observations.map((obs, idx) => (
+              {observationBullets.map((obs, idx) => (
                 <li key={idx} className="flex items-start space-x-2">
                   <span className="text-orca-blue font-mono font-bold mt-0.5">•</span>
                   <span className="leading-normal">{obs}</span>
@@ -157,14 +258,14 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
         )}
 
         {/* Recommendations list */}
-        {answer?.recommendations && answer.recommendations.length > 0 && (
-          <div className="space-y-2 bg-[#061830] p-3 rounded border border-[#1b3459]">
+        {recommendations.length > 0 && (
+          <div className="space-y-2 bg-[#05182e] p-3 rounded-md border border-[#1b3459]">
             <span className="text-[9.5px] font-mono text-emerald-400 font-bold uppercase tracking-wider block flex items-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               DECISION SUPPORT RECOMMENDATIONS
             </span>
             <ul className="space-y-1.5 text-xs text-slate-200">
-              {answer.recommendations.map((rec, idx) => (
+              {recommendations.map((rec, idx) => (
                 <li key={idx} className="flex items-start space-x-2">
                   <span className="text-emerald-400 font-mono font-bold mt-0.5">&gt;</span>
                   <span className="leading-normal">{rec}</span>
@@ -176,7 +277,7 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
 
         {/* Active Hazards Alert */}
         {hazards.length > 0 && (
-          <div className="space-y-2 bg-amber-950/30 border border-amber-800/50 p-3 rounded text-amber-200">
+          <div className="space-y-2 bg-amber-950/30 border border-amber-800/50 p-3 rounded-md text-amber-200">
             <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider block flex items-center gap-1.5 text-amber-300">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
               ACTIVE MARIME HAZARD ALERTS ({hazards.length})
@@ -214,42 +315,62 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
           </div>
         )}
 
-        {/* Data Quality & Missing Parameters info */}
+        {/* Data Quality Row (Compact Bar) */}
         {dataQuality && (
-          <div className="flex items-center justify-between p-2 bg-[#040e1c] border border-[#1b3459] rounded font-mono text-[9.5px] text-muted-orca">
+          <div className="flex items-center justify-between px-3 py-2 bg-[#040e1c] border border-[#1b3459] rounded-md font-mono text-[9.5px] text-muted-orca">
             <div className="flex items-center space-x-2">
-              <Layers className="w-3 h-3 text-orca-blue" />
-              <span>DATA COMPLETENESS:</span>
-              <span className="font-bold text-white">{dataQuality.completeness_percent ?? '--'}%</span>
-              <span>({dataQuality.available ?? 0} available / {dataQuality.requested ?? 0} requested)</span>
+              <Layers className="w-3.5 h-3.5 text-orca-blue shrink-0" />
+              <span className="font-bold text-white uppercase">DATA QUALITY:</span>
+              <span className="text-slate-200">
+                {dataQuality.completeness_percent ?? '--'}% completeness · {dataQuality.available ?? 0} available / {dataQuality.requested ?? 0} requested
+              </span>
             </div>
             {dataQuality.source_count !== undefined && (
-              <span>SOURCES: {dataQuality.source_count}</span>
+              <span className="font-bold text-slate-300">{dataQuality.source_count} sources</span>
             )}
           </div>
         )}
 
-        {/* Provenance & Sources Tag Trace */}
+        {/* Provenance & Sources Section (Compact Collapsible Tags) */}
         {sources.length > 0 && (
-          <div className="space-y-1.5 pt-2 border-t border-[#1b3459]/60 font-mono text-[9.5px]">
-            <span className="text-muted-orca uppercase tracking-wider block">
-              OFFICIAL PROVIDER PROVENANCE:
-            </span>
+          <div className="border-t border-[#1b3459]/60 pt-2 space-y-1.5 font-mono text-[9.5px]">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-orca uppercase tracking-wider font-bold">
+                SOURCES ({sources.length})
+              </span>
+              <button
+                type="button"
+                onClick={() => setSourcesExpanded(!sourcesExpanded)}
+                className="flex items-center space-x-1 text-orca-blue hover:text-white transition-colors cursor-pointer"
+              >
+                <span>{sourcesExpanded ? 'Collapse' : 'Expand Details'}</span>
+                {sourcesExpanded ? (
+                  <ChevronUp className="w-3 h-3" />
+                ) : (
+                  <ChevronDown className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+
+            {/* Compact tags view */}
             <div className="flex flex-wrap gap-1.5">
               {sources.map((src, sidx) => (
                 <div
                   key={sidx}
-                  className="bg-[#071933] border border-[#1b3459] px-2 py-1 rounded text-slate-300 flex items-center space-x-1.5"
+                  className="bg-[#051326] border border-[#1b3459] px-2 py-0.5 rounded text-slate-300 flex items-center space-x-1.5"
                 >
                   <span className="font-bold text-orca-blue">{src.name || src.title || 'Provider'}</span>
-                  {src.type && <span className="text-muted-orca text-[8.5px]">({src.type})</span>}
+                  {sourcesExpanded && src.type && (
+                    <span className="text-muted-orca text-[8.5px]">({src.type})</span>
+                  )}
                   {src.url && (
                     <a
                       href={src.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-muted-orca hover:text-white transition-colors"
-                      title="Open source URL"
+                      className="text-muted-orca hover:text-white transition-colors p-0.5"
+                      title={`Open ${src.name || 'source'} link`}
+                      aria-label={`Open external link for ${src.name || 'source'}`}
                     >
                       <ExternalLink className="w-2.5 h-2.5" />
                     </a>

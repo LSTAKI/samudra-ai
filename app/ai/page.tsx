@@ -21,9 +21,11 @@ import { useOrcaStore } from '@/stores/useOrcaStore';
 
 const SUGGESTED_PROMPTS = [
   "What's the current ocean condition near Kochi?",
-  "Show me the latest available SST information.",
-  "Explain the PFZ conditions near this region.",
-  "What marine conditions should I watch today?"
+  "Show me the latest SST around the Indian Ocean",
+  "Are there any marine hazards near Kochi?",
+  "What are the current wave conditions?",
+  "Find suitable environmental fishing zones near me",
+  "Explain the current marine conditions"
 ];
 
 interface ConversationSessionItem extends ConversationItem {
@@ -348,50 +350,62 @@ export default function OrcaAiPage() {
             ref={scrollRef}
             className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 scroll-smooth bg-[#061426]"
           >
-            {/* Welcome State when conversation has no messages */}
-            {activeMessages.length === 0 && (
-              <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 py-8 space-y-6 font-sans">
-                <div className="w-16 h-16 rounded-2xl bg-orca-blue/10 border-2 border-orca-blue/40 flex items-center justify-center text-orca-blue shadow-xl">
-                  <Bot className="w-8 h-8" />
-                </div>
+            <div className="max-w-4xl mx-auto w-full space-y-4">
+              {/* Welcome State when conversation has no messages */}
+              {activeMessages.length === 0 && (
+                <div className="h-full min-h-[420px] flex flex-col items-center justify-center text-center max-w-2xl mx-auto px-4 py-8 space-y-6 font-sans">
+                  <div className="w-16 h-16 rounded-2xl bg-orca-blue/10 border-2 border-orca-blue/40 flex items-center justify-center text-orca-blue shadow-xl">
+                    <Bot className="w-8 h-8" />
+                  </div>
 
-                <div className="space-y-2 max-w-lg">
-                  <span className="text-[11px] font-mono text-orca-blue font-bold uppercase tracking-widest block">
-                    SAMUDRA AI • OCEAN INTELLIGENCE
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white font-mono">
-                    Samudra AI Assistant
-                  </h2>
-                  <p className="text-xs sm:text-sm text-[#a4c2f4] leading-relaxed">
-                    Ask questions about ocean conditions, satellite observations, Potential Fishing Zone (PFZ) advisories, weather alerts, and safety protocols connected to Samudra AI&apos;s REST intelligence backend.
-                  </p>
-                </div>
+                  <div className="space-y-2 max-w-lg">
+                    <span className="text-[11px] font-mono text-orca-blue font-bold uppercase tracking-widest block">
+                      SAMUDRA AI • OCEAN INTELLIGENCE
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white font-mono">
+                      Samudra AI Assistant
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#a4c2f4] leading-relaxed">
+                      Explore ocean conditions, marine hazards, environmental indicators and decision-support data connected to Samudra AI&apos;s REST intelligence backend.
+                    </p>
+                  </div>
 
-                {/* Suggested Prompts Cards */}
-                <div className="w-full text-left space-y-2 pt-4 border-t border-[#1b3459]/50">
-                  <span className="text-[10px] font-mono text-muted-orca uppercase tracking-wider block">
-                    SUGGESTED ANALYTICAL PROMPTS
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSendMessage(prompt, defaultLocationContext)}
-                        className="p-3 bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] hover:text-white border border-[#173863] hover:border-orca-blue rounded-lg text-left text-xs font-mono transition-all flex items-start justify-between group cursor-pointer shadow-sm"
-                      >
-                        <span className="leading-snug pr-2">&gt; &quot;{prompt}&quot;</span>
-                        <ArrowRight className="w-3.5 h-3.5 text-orca-blue shrink-0 opacity-60 group-hover:opacity-100 transition-opacity mt-0.5" />
-                      </button>
-                    ))}
+                  {/* Suggested Prompts Cards */}
+                  <div className="w-full text-left space-y-2 pt-4 border-t border-[#1b3459]/50">
+                    <span className="text-[10px] font-mono text-muted-orca uppercase tracking-wider block">
+                      SUGGESTED ANALYTICAL PROMPTS
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {SUGGESTED_PROMPTS.map((prompt, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => handleSendMessage(prompt, defaultLocationContext)}
+                          className="p-3 bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] hover:text-white border border-[#173863] hover:border-orca-blue rounded-lg text-left text-xs font-mono transition-all flex items-start justify-between group cursor-pointer shadow-sm"
+                        >
+                          <span className="leading-snug pr-2">&gt; &quot;{prompt}&quot;</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-orca-blue shrink-0 opacity-60 group-hover:opacity-100 transition-opacity mt-0.5" />
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Message Feed */}
-            {activeMessages.map((msg) => (
-              <ChatMessageItem key={msg.id} message={msg} />
-            ))}
+              {/* Message Feed */}
+              {activeMessages.map((msg) => (
+                <ChatMessageItem
+                  key={msg.id}
+                  message={msg}
+                  onRetry={() => {
+                    // Re-trigger failed query using user prompt
+                    const userMsg = activeMessages.find((m) => m.sender === 'user');
+                    if (userMsg?.text) {
+                      handleSendMessage(userMsg.text, defaultLocationContext);
+                    }
+                  }}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Bottom Chat Composer */}

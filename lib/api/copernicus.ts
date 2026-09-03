@@ -104,7 +104,9 @@ export interface CopernicusTimeseriesResponse {
     status: 'VALID' | 'NO_DATA';
   }>;
   retrieved_at: string;
-  is_cached: boolean;
+  is_cached?: boolean;
+  is_fallback?: boolean;
+  source_type?: 'COPERNICUS_WMTS' | 'LIVE_OCEAN_CURRENT';
 }
 
 export async function fetchCopernicusCatalog(): Promise<CopernicusCatalogResponse> {
@@ -267,7 +269,7 @@ export async function fetchCopernicusTimeseries(
           if (validRecs.length > 0) {
             return {
               status: 'CONNECTED',
-              source: 'Copernicus / Open-Meteo Live API',
+              source: 'Open-Meteo / ECMWF Marine API (Live Fallback)',
               product_id: datasetKey.toUpperCase(),
               dataset_id: datasetKey,
               variable: datasetKey,
@@ -283,7 +285,9 @@ export async function fetchCopernicusTimeseries(
               last_observation: validRecs[validRecs.length - 1]?.timestamp || null,
               records,
               retrieved_at: new Date().toISOString(),
-              is_cached: false
+              is_cached: false,
+              is_fallback: true,
+              source_type: 'LIVE_OCEAN_CURRENT'
             };
           }
         }

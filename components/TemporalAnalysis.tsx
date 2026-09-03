@@ -33,6 +33,8 @@ export default function TemporalAnalysis() {
   const [waveData, setWaveData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
   const [chlData, setChlData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
   const [slaData, setSlaData] = useState<{ x: string[]; y: number[] }>({ x: [], y: [] });
+  const [isFallback, setIsFallback] = useState(false);
+  const [sourceName, setSourceName] = useState('Copernicus Marine Service');
   const [loading, setLoading] = useState(false);
 
   const lat = selectedCoordinates ? selectedCoordinates.lat : 9.9312;
@@ -57,20 +59,23 @@ export default function TemporalAnalysis() {
           const chlRecs = (chlRes.records || []).filter((r) => r.value !== null);
           const slaRecs = (slaRes.records || []).filter((r) => r.value !== null);
 
+          setIsFallback(sstRes.is_fallback || waveRes.is_fallback || slaRes.is_fallback || false);
+          setSourceName(sstRes.source || waveRes.source || 'Copernicus Marine Service');
+
           setSstData({
-            x: sstRecs.map((r) => r.timestamp.slice(5, 10)),
+            x: sstRecs.map((r) => r.timestamp.slice(11, 16) || r.timestamp.slice(5, 10)),
             y: sstRecs.map((r) => r.value as number)
           });
           setWaveData({
-            x: waveRecs.map((r) => r.timestamp.slice(5, 10)),
+            x: waveRecs.map((r) => r.timestamp.slice(11, 16) || r.timestamp.slice(5, 10)),
             y: waveRecs.map((r) => r.value as number)
           });
           setChlData({
-            x: chlRecs.map((r) => r.timestamp.slice(5, 10)),
+            x: chlRecs.map((r) => r.timestamp.slice(11, 16) || r.timestamp.slice(5, 10)),
             y: chlRecs.map((r) => r.value as number)
           });
           setSlaData({
-            x: slaRecs.map((r) => r.timestamp.slice(5, 10)),
+            x: slaRecs.map((r) => r.timestamp.slice(11, 16) || r.timestamp.slice(5, 10)),
             y: slaRecs.map((r) => r.value as number)
           });
         }
@@ -105,6 +110,7 @@ export default function TemporalAnalysis() {
   };
 
   const activeTimeLabel = timelineTicks[timelineIndex];
+  const hasAnyData = sstData.x.length > 0 || waveData.x.length > 0 || chlData.x.length > 0 || slaData.x.length > 0;
 
   return (
     <div className="bg-white border-t border-border-orca p-3 flex flex-col space-y-2.5 font-sans select-none z-20">
@@ -122,9 +128,13 @@ export default function TemporalAnalysis() {
                   <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                   SYNCING NETCDF
                 </span>
-              ) : (sstData.x.length > 0 || waveData.x.length > 0 || chlData.x.length > 0 || slaData.x.length > 0) ? (
-                <span className="text-[8px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300 font-bold">
-                  COPERNICUS OBSERVATIONS
+              ) : hasAnyData ? (
+                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded border font-bold ${
+                  isFallback
+                    ? 'border-blue-300 bg-blue-50 text-blue-800'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                }`}>
+                  {isFallback ? 'LIVE FALLBACK OBSERVATIONS' : 'COPERNICUS OBSERVATIONS'}
                 </span>
               ) : (
                 <span className="text-[8px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
@@ -133,7 +143,7 @@ export default function TemporalAnalysis() {
               )}
             </div>
             <span className="text-[9px] text-muted-orca font-mono block mt-0.5">
-              Active Coordinates: [{lat.toFixed(4)}°N, {lon.toFixed(4)}°E]
+              Active Coordinates: [{lat.toFixed(4)}°N, {lon.toFixed(4)}°E] • SOURCE: <span className="font-semibold text-primary-text">{sourceName}</span>
             </span>
           </div>
         </div>

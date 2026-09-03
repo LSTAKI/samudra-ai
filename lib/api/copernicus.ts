@@ -225,6 +225,73 @@ export async function fetchCopernicusTimeseries(
 
     return await apiRequest<CopernicusTimeseriesResponse>(`ocean/timeseries?${params.toString()}`);
   } catch (err: any) {
+    // If ocean/timeseries is not mounted on remote backend (404), query Render /api/ocean/current live hourly endpoint
+    try {
+      const renderBase = process.env.NEXT_PUBLIC_CHAT_API_URL || 'https://ocra-y11h.onrender.com';
+      const curUrl = `${renderBase.replace(/\/+$/, '')}/api/ocean/current?latitude=${lat}&longitude=${lon}`;
+      const resp = await fetch(curUrl, { headers: { 'Accept': 'application/json' } });
+      if (resp.ok) {
+        const json = await resp.json();
+        const hourly = json?.data?.hourly;
+        const times: string[] = hourly?.time || [];
+
+        let vals: (number | null)[] = [];
+        let unit = '';
+
+        if (datasetKey === 'copernicus-sst' && Array.isArray(hourly?.sea_surface_temperature)) {
+          vals = hourly.sea_surface_temperature;
+          unit = '°C';
+        } else if (datasetKey === 'copernicus-wave' && Array.isArray(hourly?.wave_height)) {
+          vals = hourly.wave_height;
+          unit = 'm';
+        } else if (datasetKey === 'copernicus-sla' && Array.isArray(hourly?.sea_level_height_msl)) {
+          vals = hourly.sea_level_height_msl;
+          unit = 'm';
+        }
+
+        if (times.length > 0 && vals.length > 0) {
+          const stepSize = Math.max(1, Math.floor(times.length / steps));
+          const records = [];
+          for (let i = 0; i < times.length && records.length < steps; i += stepSize) {
+            const val = typeof vals[i] === 'number' ? vals[i] : null;
+            records.push({
+              timestamp: `${times[i]}:00Z`,
+              value: val,
+              unit,
+              status: (val !== null ? 'VALID' : 'NO_DATA') as 'VALID' | 'NO_DATA'
+            });
+          }
+
+          const validRecs = records.filter(r => r.value !== null);
+
+          if (validRecs.length > 0) {
+            return {
+              status: 'CONNECTED',
+              source: 'Copernicus / Open-Meteo Live API',
+              product_id: datasetKey.toUpperCase(),
+              dataset_id: datasetKey,
+              variable: datasetKey,
+              units: unit,
+              coordinates: { latitude: lat, longitude: lon },
+              time_range: {
+                start: records[0]?.timestamp || '',
+                end: records[records.length - 1]?.timestamp || ''
+              },
+              count: validRecs.length,
+              total_requested: records.length,
+              first_observation: validRecs[0]?.timestamp || null,
+              last_observation: validRecs[validRecs.length - 1]?.timestamp || null,
+              records,
+              retrieved_at: new Date().toISOString(),
+              is_cached: false
+            };
+          }
+        }
+      }
+    } catch {
+      // Fall through to UNAVAILABLE envelope
+    }
+
     return {
       status: 'UNAVAILABLE',
       source: 'Copernicus Marine Service',

@@ -122,9 +122,13 @@ export default function TemporalAnalysis() {
                   <RefreshCw className="w-2.5 h-2.5 animate-spin" />
                   SYNCING NETCDF
                 </span>
-              ) : (
+              ) : (sstData.x.length > 0 || waveData.x.length > 0 || chlData.x.length > 0 || slaData.x.length > 0) ? (
                 <span className="text-[8px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300 font-bold">
                   COPERNICUS OBSERVATIONS
+                </span>
+              ) : (
+                <span className="text-[8px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-300 font-bold">
+                  NO OBSERVATIONS
                 </span>
               )}
             </div>

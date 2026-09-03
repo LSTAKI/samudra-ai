@@ -117,6 +117,50 @@ export async function fetchCopernicusFeatureInfo(
 
     return await apiRequest<CopernicusFeatureInfoResponse>(`ocean/feature-info?${params.toString()}`);
   } catch (err: any) {
+    // If ocean/feature-info is not mounted on remote backend (404), query Render /api/ocean/current live endpoint
+    try {
+      const renderBase = process.env.NEXT_PUBLIC_CHAT_API_URL || 'https://ocra-y11h.onrender.com';
+      const curUrl = `${renderBase.replace(/\/+$/, '')}/api/ocean/current?latitude=${lat}&longitude=${lon}`;
+      const resp = await fetch(curUrl, { headers: { 'Accept': 'application/json' } });
+      if (resp.ok) {
+        const json = await resp.json();
+        const curData = json?.data?.current;
+        const sampledLat = json?.data?.latitude ?? lat;
+        const sampledLon = json?.data?.longitude ?? lon;
+        const isDisplaced = Math.abs(sampledLat - lat) > 0.01 || Math.abs(sampledLon - lon) > 0.01;
+
+        let val: number | null = null;
+        if (layerId === 'copernicus-sst' && typeof curData?.sea_surface_temperature === 'number') {
+          val = curData.sea_surface_temperature;
+        } else if (layerId === 'copernicus-wave' && typeof curData?.wave_height === 'number') {
+          val = curData.wave_height;
+        } else if (layerId === 'copernicus-sla' && typeof curData?.sea_level_height_msl === 'number') {
+          val = curData.sea_level_height_msl;
+        }
+
+        if (val !== null) {
+          return {
+            status: 'CONNECTED',
+            source: layerDef?.provider || 'Copernicus Marine Service',
+            product_id: layerDef?.product || 'SST_GLO_SST_L4_NRT_OBSERVATIONS_010_001',
+            dataset_id: layerDef?.dataset || 'METOFFICE-GLO-SST-L4-NRT-OBS-SST-V2',
+            variable: layerDef?.variable || 'analysed_sst',
+            latitude: lat,
+            longitude: lon,
+            sampled_latitude: Number(sampledLat.toFixed(4)),
+            sampled_longitude: Number(sampledLon.toFixed(4)),
+            sampling_method: isDisplaced ? 'NEAREST_OCEAN_CELL' : 'EXACT_GRID_POINT',
+            value: val,
+            unit: layerDef?.units || '',
+            observation_timestamp: curData?.time ? `${curData.time}:00Z` : (time || new Date().toISOString()),
+            retrieved_at: new Date().toISOString()
+          };
+        }
+      }
+    } catch {
+      // Fall through to UNAVAILABLE envelope
+    }
+
     return {
       status: 'UNAVAILABLE',
       source: layerDef?.provider || 'Copernicus Marine Service',

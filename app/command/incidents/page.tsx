@@ -10,7 +10,7 @@ export default function IncidentsPage() {
         </div>
         <div className="space-y-2">
           <span className="text-[10px] text-[#D98200] font-mono tracking-widest uppercase">
-            ORCA PHASE 2 MODULE
+            SAMUDRA AI PHASE 2 MODULE
           </span>
           <h1 className="text-2xl font-bold uppercase">Maritime Incidents Monitor</h1>
           <p className="text-xs text-muted-orca leading-relaxed">

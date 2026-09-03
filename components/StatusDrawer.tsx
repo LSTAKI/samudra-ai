@@ -74,7 +74,7 @@ export default function StatusDrawer() {
         <div className="flex items-center space-x-3">
           <Radio className="w-5 h-5 text-orca-blue animate-pulse" />
           <h2 className="text-sm font-bold tracking-wider text-primary-text uppercase">
-            ORCA Global Telemetry & Data Synchronizer
+            Samudra AI Global Telemetry & Data Synchronizer
           </h2>
           <span className="text-[10px] bg-orca-blue/10 text-orca-blue border border-orca-blue/20 rounded px-1.5 py-0.5 font-mono">
             PHASE 1 ACTIVE

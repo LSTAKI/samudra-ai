@@ -18,8 +18,8 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'ORCA | Marine Ecosystem Reasoning with Collaborative Agents',
-  description: 'Oceanographic AI and Maritime Intelligence Platform - ISRO / INCOIS scientific console.',
+  title: 'Samudra AI — Ocean Intelligence',
+  description: 'Samudra AI — Ocean intelligence for marine conditions, hazards, ocean data and decision support.',
 };
 
 export default function RootLayout({

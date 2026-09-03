@@ -193,7 +193,7 @@ export default function ChatComposer({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask ORCA AI about marine conditions, SST, waves, hazards, or PFZ..."
+            placeholder="Ask Samudra AI about marine conditions, SST, waves, hazards, or PFZ..."
             disabled={isLoading}
             className="w-full bg-[#051124] border border-[#1b3459] rounded-md px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-secondary-text focus:outline-none focus:border-orca-blue font-sans resize-none disabled:opacity-50 min-h-[42px] max-h-[160px] leading-relaxed"
           />
@@ -217,7 +217,7 @@ export default function ChatComposer({
         <span className="hidden sm:inline">Press Enter to send, Shift+Enter for new line</span>
         <span className="flex items-center gap-1">
           <Sparkles className="w-2.5 h-2.5 text-orca-blue" />
-          ORCA REST AGENT API v1.0
+          SAMUDRA AI MARINE INTELLIGENCE API
         </span>
       </div>
     </div>

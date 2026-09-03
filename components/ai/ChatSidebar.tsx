@@ -155,7 +155,7 @@ export default function ChatSidebar({
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-xs font-bold uppercase tracking-wider text-white font-mono">
-              ORCA CONVERSATIONS
+              SAMUDRA AI CONVERSATIONS
             </span>
             <span className="text-[9px] text-muted-orca font-mono mt-0.5">
               Marine REST Session State

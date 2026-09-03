@@ -328,7 +328,7 @@ export default function OrcaAiPage() {
                 </div>
                 <div>
                   <h1 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-                    ORCA AI
+                    SAMUDRA AI
                   </h1>
                   <span className="text-[9.5px] text-muted-orca font-mono block">
                     Marine Intelligence Assistant
@@ -357,13 +357,13 @@ export default function OrcaAiPage() {
 
                 <div className="space-y-2 max-w-lg">
                   <span className="text-[11px] font-mono text-orca-blue font-bold uppercase tracking-widest block">
-                    PROJECT ORCA • REST AGENT INTELLIGENCE
+                    SAMUDRA AI • OCEAN INTELLIGENCE
                   </span>
                   <h2 className="text-2xl sm:text-3xl font-bold uppercase tracking-tight text-white font-mono">
-                    ORCA AI Assistant
+                    Samudra AI Assistant
                   </h2>
                   <p className="text-xs sm:text-sm text-[#a4c2f4] leading-relaxed">
-                    Ask questions about ocean conditions, satellite observations, Potential Fishing Zone (PFZ) advisories, weather alerts, and safety protocols connected to ORCA&apos;s REST intelligence backend.
+                    Ask questions about ocean conditions, satellite observations, Potential Fishing Zone (PFZ) advisories, weather alerts, and safety protocols connected to Samudra AI&apos;s REST intelligence backend.
                   </p>
                 </div>
 

@@ -14,7 +14,7 @@ export default function HomePage() {
             <span className="w-5 h-5 bg-white rounded-full"></span>
           </div>
           <span className="text-[11px] text-orca-blue font-mono tracking-[0.25em] uppercase font-bold">
-            Project ORCA • SIH26176
+            SAMUDRA AI • OCEAN INTELLIGENCE
           </span>
           <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-white uppercase font-sans">
             Marine Ecosystem Reasoning
@@ -25,7 +25,7 @@ export default function HomePage() {
         </div>
 
         <p className="text-sm sm:text-base text-[#a4c2f4] max-w-2xl mx-auto leading-relaxed">
-          ORCA is an oceanographic AI and maritime intelligence platform establishing real-time multi-sensor fusion, Potential Fishing Zone (PFZ) advisory, and maritime boundary warning models.
+          Samudra AI is an oceanographic AI and maritime intelligence platform establishing real-time multi-sensor fusion, Potential Fishing Zone (PFZ) advisory, and maritime boundary warning models.
         </p>
 
         {/* Primary action */}

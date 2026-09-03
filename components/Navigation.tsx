@@ -12,7 +12,7 @@ const navItems = [
   { name: 'PFZ', href: '/research/pfz' },
   { name: 'Analytics', href: '/research/analytics' },
   { name: 'Command Center', href: '/research/command' },
-  { name: 'ORCA AI', href: '/ai' },
+  { name: 'SAMUDRA AI', href: '/ai' },
 ];
 
 export default function Navigation() {
@@ -24,9 +24,9 @@ export default function Navigation() {
       {/* Left: Brand */}
       <div className="flex items-center space-x-3">
         <Link href="/" className="flex flex-col items-start leading-none group">
-          <span className="text-xl font-bold tracking-wider text-white flex items-center gap-1.5">
+          <span className="text-xl font-bold tracking-wider text-white flex items-center gap-1.5 font-mono">
             <span className="w-2.5 h-2.5 bg-orca-blue rounded-full animate-pulse inline-block"></span>
-            ORCA
+            SAMUDRA AI
           </span>
           <span className="text-[10px] text-muted-orca font-mono tracking-widest mt-0.5 uppercase">
             Ocean Intelligence

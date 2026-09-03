@@ -10,7 +10,7 @@ export default function SettingsPage() {
         </div>
         <div className="space-y-2">
           <span className="text-[10px] text-[#526273] font-mono tracking-widest uppercase">
-            ORCA SETTINGS CONFIGURATION
+            SAMUDRA AI SETTINGS CONFIGURATION
           </span>
           <h1 className="text-2xl font-bold uppercase">SYSTEM PREFERENCES</h1>
           <p className="text-xs text-muted-orca leading-relaxed">

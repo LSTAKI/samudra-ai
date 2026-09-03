@@ -125,7 +125,7 @@ export async function checkChatBackendHealth(): Promise<ChatBackendHealth> {
       const result: ChatBackendHealth = {
         status: latencyMs > 5000 ? 'DEGRADED' : 'CONNECTED',
         latencyMs,
-        message: 'ORCA Intelligence Engine Online'
+        message: 'Samudra AI Intelligence Engine Online'
       };
       if (process.env.NODE_ENV !== 'production') {
         console.log('[ORCA HEALTH DEBUG]', result);
@@ -197,19 +197,23 @@ export async function sendChatMessage(
 
   if (!response.ok) {
     let errorDetail = `HTTP ${response.status}: ${response.statusText}`;
-    try {
-      const errJson = await response.json();
-      if (errJson?.detail) {
-        if (typeof errJson.detail === 'string') {
-          errorDetail = errJson.detail;
-        } else if (Array.isArray(errJson.detail)) {
-          errorDetail = errJson.detail.map((e: any) => e.msg || JSON.stringify(e)).join('; ');
-        } else if (typeof errJson.detail === 'object') {
-          errorDetail = JSON.stringify(errJson.detail);
+    if (response.status === 502 || response.status === 520 || response.status === 504) {
+      errorDetail = `Samudra AI Service Gateway Busy (HTTP ${response.status}). Render free-tier backend is spinning up or reloading upstream feeds. Please click retry.`;
+    } else {
+      try {
+        const errJson = await response.json();
+        if (errJson?.detail) {
+          if (typeof errJson.detail === 'string') {
+            errorDetail = errJson.detail;
+          } else if (Array.isArray(errJson.detail)) {
+            errorDetail = errJson.detail.map((e: any) => e.msg || JSON.stringify(e)).join('; ');
+          } else if (typeof errJson.detail === 'object') {
+            errorDetail = JSON.stringify(errJson.detail);
+          }
         }
+      } catch {
+        // Use fallback errorDetail
       }
-    } catch {
-      // Use fallback errorDetail
     }
     throw new Error(errorDetail);
   }

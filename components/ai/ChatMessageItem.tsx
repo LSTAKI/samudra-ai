@@ -79,7 +79,7 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
             <div className="w-5 h-5 rounded bg-orca-blue/20 border border-orca-blue/50 flex items-center justify-center text-orca-blue">
               <Bot className="w-3.5 h-3.5" />
             </div>
-            <span className="font-bold text-white uppercase tracking-wider">ORCA AI ASSISTANT</span>
+            <span className="font-bold text-white uppercase tracking-wider">SAMUDRA AI ASSISTANT</span>
             {data?.conversation_id && (
               <span className="text-muted-orca bg-[#07162c] px-1.5 py-0.5 rounded border border-[#1b3459]">
                 ID: {data.conversation_id}
@@ -101,10 +101,10 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
         </div>
 
         {/* Loading state */}
-        {message.isLoading && (
+        {message.isLoading && !message.error && !answer?.summary && (
           <div className="flex items-center space-x-2.5 text-orca-blue font-mono text-xs py-3 animate-pulse">
             <div className="w-3.5 h-3.5 border-2 border-orca-blue border-t-transparent rounded-full animate-spin"></div>
-            <span>Querying ORCA Marine Intelligence REST backend...</span>
+            <span>Querying Samudra AI Marine Intelligence...</span>
           </div>
         )}
 
@@ -113,7 +113,7 @@ export default function ChatMessageItem({ message, onSelectPrompt }: ChatMessage
           <div className="bg-rose-950/60 border border-rose-800/80 rounded p-3 text-rose-200 text-xs font-mono space-y-1">
             <div className="flex items-center space-x-1.5 font-bold text-rose-300">
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>SERVICE RESPONSE FAILURE</span>
+              <span>SAMUDRA AI SERVICE FAILURE</span>
             </div>
             <p className="text-[11px] leading-relaxed">{message.error}</p>
           </div>

@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Samudra AI — Ocean Intelligence
+
+Samudra AI is an oceanographic AI and maritime intelligence platform for real-time marine condition monitoring, satellite observation fusion, hazard tracking, and decision support.
 
 ## Getting Started
 

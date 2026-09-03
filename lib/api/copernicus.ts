@@ -23,6 +23,9 @@ export interface CopernicusFeatureInfoResponse {
   sampled_latitude?: number;
   sampled_longitude?: number;
   sampling_method?: 'EXACT_GRID_POINT' | 'NEAREST_OCEAN_CELL' | 'NO_DATA';
+  sampling_distance_km?: number;
+  is_fallback?: boolean;
+  source_type?: 'WMTS_FEATURE_INFO' | 'LIVE_OCEAN_CURRENT';
   value: number | null;
   unit: string;
   spatial_resolution?: string;
@@ -31,6 +34,24 @@ export interface CopernicusFeatureInfoResponse {
   retrieved_at: string;
   is_cached?: boolean;
   error?: string | null;
+}
+
+export function calculateHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (Math.abs(lat1 - lat2) < 0.0001 && Math.abs(lon1 - lon2) < 0.0001) {
+    return 0.0;
+  }
+  const R = 6371.0;
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const phi1 = rad(lat1);
+  const phi2 = rad(lat2);
+  const dphi = rad(lat2 - lat1);
+  const dlambda = rad(lon2 - lon1);
+
+  const a =
+    Math.sin(dphi / 2) * Math.sin(dphi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(dlambda / 2) * Math.sin(dlambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Number((R * c).toFixed(2));
 }
 
 export interface CopernicusSpatialSummaryResponse {
@@ -125,9 +146,12 @@ export async function fetchCopernicusFeatureInfo(
       if (resp.ok) {
         const json = await resp.json();
         const curData = json?.data?.current;
-        const sampledLat = json?.data?.latitude ?? lat;
-        const sampledLon = json?.data?.longitude ?? lon;
-        const isDisplaced = Math.abs(sampledLat - lat) > 0.01 || Math.abs(sampledLon - lon) > 0.01;
+        const rawLat = json?.data?.latitude ?? lat;
+        const rawLon = json?.data?.longitude ?? lon;
+        const sLat = Number(rawLat.toFixed(4));
+        const sLon = Number(rawLon.toFixed(4));
+        const distKm = calculateHaversineDistance(lat, lon, sLat, sLon);
+        const samplingMethod = distKm > 0.1 ? 'NEAREST_OCEAN_CELL' : 'EXACT_GRID_POINT';
 
         let val: number | null = null;
         if (layerId === 'copernicus-sst' && typeof curData?.sea_surface_temperature === 'number') {
@@ -147,9 +171,12 @@ export async function fetchCopernicusFeatureInfo(
             variable: layerDef?.variable || 'analysed_sst',
             latitude: lat,
             longitude: lon,
-            sampled_latitude: Number(sampledLat.toFixed(4)),
-            sampled_longitude: Number(sampledLon.toFixed(4)),
-            sampling_method: isDisplaced ? 'NEAREST_OCEAN_CELL' : 'EXACT_GRID_POINT',
+            sampled_latitude: sLat,
+            sampled_longitude: sLon,
+            sampling_method: samplingMethod,
+            sampling_distance_km: distKm,
+            is_fallback: true,
+            source_type: 'LIVE_OCEAN_CURRENT',
             value: val,
             unit: layerDef?.units || '',
             observation_timestamp: curData?.time ? `${curData.time}:00Z` : (time || new Date().toISOString()),

@@ -122,8 +122,12 @@ export default function OceanPointInspector({ onViewHistory }: OceanPointInspect
               CACHED OBSERVATION
             </span>
           ) : hasValue ? (
-            <span className="px-1.5 py-0.5 rounded border border-emerald-300 bg-emerald-50 text-emerald-700 text-[8px] font-bold">
-              REAL OBSERVATION
+            <span className={`px-1.5 py-0.5 rounded border text-[8px] font-bold ${
+              data?.is_fallback 
+                ? 'border-blue-300 bg-blue-50 text-blue-800' 
+                : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+            }`}>
+              {data?.is_fallback ? 'LIVE API FALLBACK' : 'REAL OBSERVATION'}
             </span>
           ) : data?.status === 'NO_DATA' ? (
             <span className="px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-700 text-[8px] font-bold">

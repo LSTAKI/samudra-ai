@@ -22,7 +22,7 @@ export interface CopernicusFeatureInfoResponse {
   longitude: number;
   sampled_latitude?: number;
   sampled_longitude?: number;
-  sampling_method?: 'EXACT_GRID_POINT' | 'NEAREST_OCEAN_CELL';
+  sampling_method?: 'EXACT_GRID_POINT' | 'NEAREST_OCEAN_CELL' | 'NO_DATA';
   value: number | null;
   unit: string;
   spatial_resolution?: string;

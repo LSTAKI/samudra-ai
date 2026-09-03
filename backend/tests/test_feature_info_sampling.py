@@ -33,7 +33,7 @@ test_cases = [
         "lat": 12.9716,
         "lon": 77.5946,
         "expected_status": "NO_DATA",
-        "expected_method": "EXACT_GRID_POINT",
+        "expected_method": "NO_DATA",
         "expect_value": False,
         "expect_same_coord": True,
         "expect_zero_distance": True,

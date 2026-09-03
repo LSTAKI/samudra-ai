@@ -223,7 +223,7 @@ async def execute_feature_info(
             sampled_lat = round(lat, 4)
             sampled_lon = round(lon, 4)
             distance_km = 0.0
-            sampling_method = "EXACT_GRID_POINT"
+            sampling_method = "NO_DATA"
     else:
         sampling_method = "EXACT_GRID_POINT"
         sampled_lat = round(lat, 4)

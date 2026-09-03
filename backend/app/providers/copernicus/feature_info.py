@@ -65,6 +65,18 @@ def _extract_props(features: list, meta: dict):
 
     return val, sampled_lat, sampled_lon, time_val
 
+def calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate Haversine distance in kilometers between two decimal coordinates."""
+    if abs(lat1 - lat2) < 0.0001 and abs(lon1 - lon2) < 0.0001:
+        return 0.0
+    r = 6371.0
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
+    c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
+    return round(r * c, 2)
+
 
 async def execute_feature_info(
     dataset_key: str,
@@ -78,26 +90,26 @@ async def execute_feature_info(
     now_iso = datetime.now(tz=timezone.utc).isoformat()
     meta = get_registered_dataset(dataset_key)
     
-    cache_key = f"copernicus:fi:{meta['id']}:{lat:.4f}:{lon:.4f}:{time_iso or 'default'}"
+    cache_key = f"copernicus:fi:{meta['id']}:{lat:.4f}_{lon:.4f}:{time_iso or 'default'}"
     cached = cache_service.get(cache_key)
     if cached:
         res = dict(cached["data"])
-        res["retrieved_at"] = cached["retrieved_at"]
         res["is_cached"] = True
         return res
 
-    if not meta.get("supports_feature_info") or not meta.get("wmts_layer"):
+    if not meta["supports_feature_info"]:
         return {
             "status": "UNAVAILABLE",
             "source": meta["source"],
-            "dataset_id": meta["dataset_id"],
             "product_id": meta["product_id"],
+            "dataset_id": meta["dataset_id"],
             "variable": meta["variable"],
             "latitude": lat,
             "longitude": lon,
             "sampled_latitude": lat,
             "sampled_longitude": lon,
             "sampling_method": "EXACT_GRID_POINT",
+            "sampling_distance_km": 0.0,
             "value": None,
             "unit": meta["units"],
             "spatial_resolution": meta.get("spatial_resolution", ""),
@@ -136,8 +148,8 @@ async def execute_feature_info(
 
     payload = None
     val = None
-    sampled_lat = lat
-    sampled_lon = lon
+    sampled_lat = round(lat, 4)
+    sampled_lon = round(lon, 4)
     actual_time = time_iso or "2026-08-28T00:00:00Z"
     sampling_method = "EXACT_GRID_POINT"
 
@@ -145,10 +157,6 @@ async def execute_feature_info(
         payload = do_query(lat, lon, time_iso)
         if payload:
             val, s_lat, s_lon, t_val = _extract_props(payload.get("features", []), meta)
-            if s_lat is not None:
-                sampled_lat = round(float(s_lat), 4)
-            if s_lon is not None:
-                sampled_lon = round(float(s_lon), 4)
             if t_val:
                 actual_time = str(t_val)
     except urllib.error.HTTPError as http_err:
@@ -157,10 +165,6 @@ async def execute_feature_info(
                 payload = do_query(lat, lon, None)
                 if payload:
                     val, s_lat, s_lon, t_val = _extract_props(payload.get("features", []), meta)
-                    if s_lat is not None:
-                        sampled_lat = round(float(s_lat), 4)
-                    if s_lon is not None:
-                        sampled_lon = round(float(s_lon), 4)
                     if t_val:
                         actual_time = str(t_val)
             except Exception:
@@ -168,11 +172,11 @@ async def execute_feature_info(
     except Exception as e:
         logger.warning(f"Feature info initial query error: {e}")
 
-    # If point is land-masked (val is None), check nearest offshore ocean grid cell up to ~0.25 deg (~25 km)
+    # If point is land-masked (val is None), check nearest offshore ocean grid cell up to ~0.20 deg (~22 km)
     alt_found = False
     if val is None:
         spiral_offsets = []
-        for r in [0.05, 0.10, 0.15, 0.20, 0.25]:
+        for r in [0.05, 0.10, 0.15, 0.20]:
             spiral_offsets.extend([
                 (0.0, -r), (-r, 0.0), (0.0, r), (r, 0.0),
                 (-r, -r), (-r, r), (r, -r), (r, r)
@@ -180,15 +184,17 @@ async def execute_feature_info(
         
         for d_lat, d_lon in spiral_offsets:
             try:
-                alt_payload = do_query(lat + d_lat, lon + d_lon, time_iso)
+                target_lat = round(lat + d_lat, 4)
+                target_lon = round(lon + d_lon, 4)
+                alt_payload = do_query(target_lat, target_lon, time_iso)
                 if alt_payload:
                     alt_val, s_lat, s_lon, t_val = _extract_props(alt_payload.get("features", []), meta)
                     if alt_val is not None:
                         val = alt_val
                         payload = alt_payload
                         alt_found = True
-                        sampled_lat = round(float(s_lat), 4) if s_lat is not None else round(lat + d_lat, 4)
-                        sampled_lon = round(float(s_lon), 4) if s_lon is not None else round(lon + d_lon, 4)
+                        sampled_lat = target_lat
+                        sampled_lon = target_lon
                         if t_val:
                             actual_time = str(t_val)
                         break
@@ -197,12 +203,16 @@ async def execute_feature_info(
 
     if val is None:
         sampling_method = "EXACT_GRID_POINT"
-        sampled_lat = lat
-        sampled_lon = lon
+        sampled_lat = round(lat, 4)
+        sampled_lon = round(lon, 4)
     elif alt_found:
         sampling_method = "NEAREST_OCEAN_CELL"
     else:
         sampling_method = "EXACT_GRID_POINT"
+        sampled_lat = round(lat, 4)
+        sampled_lon = round(lon, 4)
+
+    distance_km = calculate_haversine_distance(lat, lon, sampled_lat, sampled_lon)
 
     obs_status = "CONNECTED" if val is not None else "NO_DATA"
     result = {
@@ -216,6 +226,7 @@ async def execute_feature_info(
         "sampled_latitude": sampled_lat,
         "sampled_longitude": sampled_lon,
         "sampling_method": sampling_method,
+        "sampling_distance_km": distance_km,
         "value": val,
         "unit": meta["units"],
         "spatial_resolution": meta.get("spatial_resolution", ""),

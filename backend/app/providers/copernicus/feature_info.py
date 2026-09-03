@@ -168,29 +168,41 @@ async def execute_feature_info(
     except Exception as e:
         logger.warning(f"Feature info initial query error: {e}")
 
-    # If point is land-masked (val is None), check nearest offshore ocean grid cell (~0.2 deg)
+    # If point is land-masked (val is None), check nearest offshore ocean grid cell up to ~0.25 deg (~25 km)
+    alt_found = False
     if val is None:
-        for offset_lon in [-0.2, 0.2, -0.4, 0.4]:
+        spiral_offsets = []
+        for r in [0.05, 0.10, 0.15, 0.20, 0.25]:
+            spiral_offsets.extend([
+                (0.0, -r), (-r, 0.0), (0.0, r), (r, 0.0),
+                (-r, -r), (-r, r), (r, -r), (r, r)
+            ])
+        
+        for d_lat, d_lon in spiral_offsets:
             try:
-                alt_payload = do_query(lat, lon + offset_lon, time_iso)
+                alt_payload = do_query(lat + d_lat, lon + d_lon, time_iso)
                 if alt_payload:
                     alt_val, s_lat, s_lon, t_val = _extract_props(alt_payload.get("features", []), meta)
                     if alt_val is not None:
                         val = alt_val
                         payload = alt_payload
-                        sampling_method = "NEAREST_OCEAN_CELL"
-                        if s_lat is not None:
-                            sampled_lat = round(float(s_lat), 4)
-                        if s_lon is not None:
-                            sampled_lon = round(float(s_lon), 4)
+                        alt_found = True
+                        sampled_lat = round(float(s_lat), 4) if s_lat is not None else round(lat + d_lat, 4)
+                        sampled_lon = round(float(s_lon), 4) if s_lon is not None else round(lon + d_lon, 4)
                         if t_val:
                             actual_time = str(t_val)
                         break
             except Exception:
                 continue
 
-    if abs(sampled_lat - lat) > 0.05 or abs(sampled_lon - lon) > 0.05:
+    if val is None:
+        sampling_method = "EXACT_GRID_POINT"
+        sampled_lat = lat
+        sampled_lon = lon
+    elif alt_found:
         sampling_method = "NEAREST_OCEAN_CELL"
+    else:
+        sampling_method = "EXACT_GRID_POINT"
 
     obs_status = "CONNECTED" if val is not None else "NO_DATA"
     result = {

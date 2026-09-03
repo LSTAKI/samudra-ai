@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import Navigation from '@/components/Navigation';
 import ChatSidebar, { ConversationItem } from '@/components/ai/ChatSidebar';
 import ChatMessageItem, { ChatMessage } from '@/components/ai/ChatMessageItem';
 import ChatComposer from '@/components/ai/ChatComposer';
@@ -15,16 +14,8 @@ import {
 import {
   Bot,
   PanelLeft,
-  RefreshCw,
-  Sparkles,
-  HelpCircle,
   ArrowRight,
-  ShieldCheck,
-  Compass,
-  AlertTriangle,
-  Menu,
-  Activity,
-  Layers
+  Menu
 } from 'lucide-react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 
@@ -34,6 +25,10 @@ const SUGGESTED_PROMPTS = [
   "Explain the PFZ conditions near this region.",
   "What marine conditions should I watch today?"
 ];
+
+interface ConversationSessionItem extends ConversationItem {
+  backendConvId?: string | null;
+}
 
 export default function OrcaAiPage() {
   const { selectedLatitude, selectedLongitude } = useOrcaStore();
@@ -47,7 +42,7 @@ export default function OrcaAiPage() {
   const [connectionLatency, setConnectionLatency] = useState<number | undefined>(undefined);
 
   // Conversations State
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [conversations, setConversations] = useState<ConversationSessionItem[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
   // Messages per conversation state
@@ -86,15 +81,17 @@ export default function OrcaAiPage() {
 
   // Current active conversation's messages
   const activeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
+  const activeConv = conversations.find((c) => c.id === activeConversationId);
 
   // Start new conversation
   const handleNewConversation = () => {
     const newId = `conv_${Date.now()}`;
-    const newConv: ConversationItem = {
+    const newConv: ConversationSessionItem = {
       id: newId,
       title: 'New Conversation',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      backendConvId: null
     };
 
     setConversations((prev) => [newConv, ...prev]);
@@ -121,24 +118,26 @@ export default function OrcaAiPage() {
   const handleSendMessage = async (text: string, locationContext?: LocationInput | null) => {
     if (!text.trim() || isLoading) return;
 
-    let convId = activeConversationId;
+    let localConvId = activeConversationId;
+    let currentBackendConvId = activeConv?.backendConvId || null;
 
     // Create a new conversation if none exists
-    if (!convId) {
-      convId = `conv_${Date.now()}`;
-      const newConv: ConversationItem = {
-        id: convId,
+    if (!localConvId) {
+      localConvId = `conv_${Date.now()}`;
+      const newConv: ConversationSessionItem = {
+        id: localConvId,
         title: text.length > 28 ? `${text.slice(0, 28)}...` : text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        backendConvId: null
       };
       setConversations((prev) => [newConv, ...prev]);
-      setActiveConversationId(convId);
+      setActiveConversationId(localConvId);
     } else {
       // Update title of active conversation if it's "New Conversation"
       setConversations((prev) =>
         prev.map((c) =>
-          c.id === convId && c.title === 'New Conversation'
+          c.id === localConvId && c.title === 'New Conversation'
             ? { ...c, title: text.length > 28 ? `${text.slice(0, 28)}...` : text }
             : c
         )
@@ -154,8 +153,9 @@ export default function OrcaAiPage() {
       text
     };
 
+    const loadingAssistantMessageId = `msg_a_loading_${Date.now()}`;
     const loadingAssistantMessage: ChatMessage = {
-      id: `msg_a_${Date.now()}`,
+      id: loadingAssistantMessageId,
       sender: 'assistant',
       timestamp,
       isLoading: true
@@ -164,31 +164,45 @@ export default function OrcaAiPage() {
     // Add user message & loading placeholder
     setMessagesMap((prev) => ({
       ...prev,
-      [convId!]: [...(prev[convId!] || []), userMessage, loadingAssistantMessage]
+      [localConvId!]: [...(prev[localConvId!] || []), userMessage, loadingAssistantMessage]
     }));
 
     setIsLoading(true);
 
     try {
-      // Build location fallback if locationContext not specified
-      const loc: LocationInput | undefined = locationContext
+      // Build location payload
+      const loc: LocationInput = locationContext
         ? locationContext
         : selectedLatitude !== null && selectedLongitude !== null
         ? {
-            name: `${selectedLatitude.toFixed(2)}°N, ${selectedLongitude.toFixed(2)}°E`,
+            name: 'Kochi Coast',
             latitude: selectedLatitude,
             longitude: selectedLongitude
           }
-        : undefined;
+        : {
+            name: 'Kochi Coast',
+            latitude: 9.9312,
+            longitude: 76.2673
+          };
 
+      // Call deployed backend POST /api/chat
       const responseData: ChatResponseData = await sendChatMessage({
         message: text,
-        conversation_id: convId,
+        conversation_id: currentBackendConvId || null,
         location: loc
       });
 
+      // Save returned backend conversation_id if provided
+      if (responseData.conversation_id) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === localConvId ? { ...c, backendConvId: responseData.conversation_id } : c
+          )
+        );
+      }
+
       const finalAssistantMessage: ChatMessage = {
-        id: `msg_a_${Date.now()}`,
+        id: `msg_a_res_${Date.now()}`,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         data: responseData,
@@ -197,15 +211,15 @@ export default function OrcaAiPage() {
 
       setMessagesMap((prev) => ({
         ...prev,
-        [convId!]: (prev[convId!] || []).map((msg) =>
-          msg.id === loadingAssistantMessage.id ? finalAssistantMessage : msg
+        [localConvId!]: (prev[localConvId!] || []).map((msg) =>
+          msg.id === loadingAssistantMessageId ? finalAssistantMessage : msg
         )
       }));
     } catch (err: any) {
       console.error('ORCA Chat API Error:', err);
 
       const errorAssistantMessage: ChatMessage = {
-        id: `msg_a_${Date.now()}`,
+        id: `msg_a_err_${Date.now()}`,
         sender: 'assistant',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         error: err?.message || 'Unable to reach ORCA Marine Intelligence service.'
@@ -213,8 +227,8 @@ export default function OrcaAiPage() {
 
       setMessagesMap((prev) => ({
         ...prev,
-        [convId!]: (prev[convId!] || []).map((msg) =>
-          msg.id === loadingAssistantMessage.id ? errorAssistantMessage : msg
+        [localConvId!]: (prev[localConvId!] || []).map((msg) =>
+          msg.id === loadingAssistantMessageId ? errorAssistantMessage : msg
         )
       }));
     } finally {
@@ -257,22 +271,16 @@ export default function OrcaAiPage() {
     }
   };
 
-  const defaultLocationContext: LocationInput | null =
-    selectedLatitude !== null && selectedLongitude !== null
-      ? {
-          name: `${selectedLatitude.toFixed(2)}°N, ${selectedLongitude.toFixed(2)}°E`,
-          latitude: selectedLatitude,
-          longitude: selectedLongitude
-        }
-      : null;
+  const defaultLocationContext: LocationInput = {
+    name: 'Kochi Coast',
+    latitude: selectedLatitude ?? 9.9312,
+    longitude: selectedLongitude ?? 76.2673
+  };
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#07162c] text-white font-sans overflow-hidden select-none">
-      {/* Top Global Header */}
-      <Navigation />
-
+    <div className="h-full w-full flex flex-col overflow-hidden bg-[#07162c] text-white font-sans select-none">
       {/* Main AI Workspace Body */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative h-full">
         {/* Left Conversations Sidebar */}
         <ChatSidebar
           conversations={conversations}
@@ -296,7 +304,7 @@ export default function OrcaAiPage() {
               {/* Mobile Drawer Trigger */}
               <button
                 onClick={() => setIsSidebarOpenMobile(true)}
-                className="lg:hidden p-1.5 text-muted-orca hover:text-white hover:bg-[#12315b] rounded transition-colors"
+                className="lg:hidden p-1.5 text-muted-orca hover:text-white hover:bg-[#12315b] rounded transition-colors cursor-pointer"
                 title="Open Conversations"
               >
                 <Menu className="w-4 h-4" />
@@ -306,7 +314,7 @@ export default function OrcaAiPage() {
               {isSidebarCollapsedDesktop && (
                 <button
                   onClick={() => setIsSidebarCollapsedDesktop(false)}
-                  className="hidden lg:flex items-center space-x-1 p-1.5 text-muted-orca hover:text-white hover:bg-[#12315b] rounded transition-colors font-mono text-xs"
+                  className="hidden lg:flex items-center space-x-1 p-1.5 text-muted-orca hover:text-white hover:bg-[#12315b] rounded transition-colors font-mono text-xs cursor-pointer"
                   title="Expand Sidebar"
                 >
                   <PanelLeft className="w-4 h-4" />

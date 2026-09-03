@@ -90,56 +90,100 @@ export interface ChatBackendHealth {
 }
 
 /**
-  * Checks health connection to the deployed ORCA Chat backend.
-  */
+ * Checks health connection to the deployed ORCA Chat backend.
+ * Uses /health endpoint with fallback to / root endpoint.
+ */
 export async function checkChatBackendHealth(): Promise<ChatBackendHealth> {
   const start = performance.now();
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const response = await fetch(`${CHAT_API_BASE_URL}/health`, {
+    let response = await fetch(`${CHAT_API_BASE_URL}/health`, {
       method: 'GET',
       signal: controller.signal,
       headers: {
         'Accept': 'application/json'
       }
-    });
+    }).catch(() => null);
+
+    // Fallback to root endpoint if /health fetch failed
+    if (!response || !response.ok) {
+      response = await fetch(`${CHAT_API_BASE_URL}/`, {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json'
+        }
+      }).catch(() => null);
+    }
 
     clearTimeout(timeoutId);
     const latencyMs = Math.round(performance.now() - start);
 
-    if (response.ok) {
-      return {
-        status: latencyMs > 3000 ? 'DEGRADED' : 'CONNECTED',
+    if (response && response.ok) {
+      const result: ChatBackendHealth = {
+        status: latencyMs > 5000 ? 'DEGRADED' : 'CONNECTED',
         latencyMs,
         message: 'ORCA Intelligence Engine Online'
       };
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[ORCA HEALTH DEBUG]', result);
+      }
+      return result;
     } else {
-      return {
+      const statusText = response ? `HTTP ${response.status}` : 'No Response';
+      const result: ChatBackendHealth = {
         status: 'DEGRADED',
         latencyMs,
-        message: `HTTP ${response.status}: ${response.statusText}`
+        message: `Backend Warning: ${statusText}`
       };
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[ORCA HEALTH WARNING]', result);
+      }
+      return result;
     }
   } catch (err: any) {
     const latencyMs = Math.round(performance.now() - start);
-    return {
+    const result: ChatBackendHealth = {
       status: 'ERROR',
       latencyMs,
       message: err?.name === 'AbortError' ? 'Health check timed out' : (err?.message || 'Connection failed')
     };
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('[ORCA HEALTH ERROR]', result);
+    }
+    return result;
   }
 }
 
 /**
-  * Sends a chat prompt to the deployed POST /api/chat backend endpoint.
-  */
+ * Sends a chat prompt to the deployed POST /api/chat backend endpoint.
+ */
 export async function sendChatMessage(
   payload: ChatRequestPayload,
   signal?: AbortSignal
 ): Promise<ChatResponseData> {
   const url = `${CHAT_API_BASE_URL.replace(/\/+$/, '')}/api/chat`;
+
+  // Guarantee location object to satisfy backend validation
+  const locationPayload: LocationInput = (payload.location && (payload.location.name || payload.location.latitude))
+    ? payload.location
+    : {
+        name: 'Kochi Coast',
+        latitude: 9.9312,
+        longitude: 76.2673
+      };
+
+  const bodyData: ChatRequestPayload = {
+    message: payload.message,
+    conversation_id: payload.conversation_id || null,
+    location: locationPayload
+  };
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[ORCA CHAT REQUEST]', url, bodyData);
+  }
 
   const response = await fetch(url, {
     method: 'POST',
@@ -148,7 +192,7 @@ export async function sendChatMessage(
       'Accept': 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(bodyData)
   });
 
   if (!response.ok) {
@@ -160,6 +204,8 @@ export async function sendChatMessage(
           errorDetail = errJson.detail;
         } else if (Array.isArray(errJson.detail)) {
           errorDetail = errJson.detail.map((e: any) => e.msg || JSON.stringify(e)).join('; ');
+        } else if (typeof errJson.detail === 'object') {
+          errorDetail = JSON.stringify(errJson.detail);
         }
       }
     } catch {
@@ -169,5 +215,10 @@ export async function sendChatMessage(
   }
 
   const data: ChatResponseData = await response.json();
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[ORCA CHAT RESPONSE]', data);
+  }
+
   return data;
 }

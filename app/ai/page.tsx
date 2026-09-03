@@ -369,7 +369,7 @@ export default function OrcaAiPage() {
                       Samudra AI Assistant
                     </h2>
                     <p className="text-xs sm:text-sm text-[#a4c2f4] leading-relaxed">
-                      Explore ocean conditions, marine hazards, environmental indicators and decision-support data connected to Samudra AI&apos;s REST intelligence backend.
+                      Explore ocean conditions, marine hazards, environmental indicators and decision-support data with Samudra AI.
                     </p>
                   </div>
 

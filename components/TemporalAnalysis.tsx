@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 import { fetchCopernicusTimeseries } from '@/lib/api/copernicus';
-import { Play, Pause, ChevronLeft, ChevronRight, Calendar, RefreshCw } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Calendar, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const PlotlyChart = dynamic(() => import('./PlotlyChart'), {
   ssr: false,
@@ -265,8 +265,14 @@ export default function TemporalAnalysis() {
                 yUnit="°C"
               />
             ) : (
-              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
-                No SST observations
+              <div className="w-full h-28 bg-[#0f243f]/60 rounded border border-[#1b3459] p-3 flex flex-col items-center justify-center text-center space-y-1 font-mono text-[9.5px]">
+                <div className="flex items-center gap-1 text-amber-400 font-bold uppercase">
+                  <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>SST • UNAVAILABLE</span>
+                </div>
+                <span className="text-slate-300 text-[8.5px] leading-tight">
+                  No observations for selected coordinate/time.
+                </span>
               </div>
             )}
           </div>
@@ -288,8 +294,14 @@ export default function TemporalAnalysis() {
                 yUnit="m"
               />
             ) : (
-              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
-                No Wave observations
+              <div className="w-full h-28 bg-[#0f243f]/60 rounded border border-[#1b3459] p-3 flex flex-col items-center justify-center text-center space-y-1 font-mono text-[9.5px]">
+                <div className="flex items-center gap-1 text-amber-400 font-bold uppercase">
+                  <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>WAVE HEIGHT • UNAVAILABLE</span>
+                </div>
+                <span className="text-slate-300 text-[8.5px] leading-tight">
+                  No observations for selected coordinate/time.
+                </span>
               </div>
             )}
           </div>
@@ -311,8 +323,14 @@ export default function TemporalAnalysis() {
                 yUnit="mg/m³"
               />
             ) : (
-              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
-                No Chlorophyll observations
+              <div className="w-full h-28 bg-[#0f243f]/60 rounded border border-[#1b3459] p-3 flex flex-col items-center justify-center text-center space-y-1 font-mono text-[9.5px]">
+                <div className="flex items-center gap-1 text-amber-400 font-bold uppercase">
+                  <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>CHLOROPHYLL-a • UNAVAILABLE</span>
+                </div>
+                <span className="text-slate-300 text-[8.5px] leading-tight">
+                  No observations for selected coordinate/time.
+                </span>
               </div>
             )}
           </div>
@@ -334,8 +352,14 @@ export default function TemporalAnalysis() {
                 yUnit="m"
               />
             ) : (
-              <div className="w-full h-28 bg-secondary-surface rounded border border-border-orca flex items-center justify-center text-[10px] text-muted-orca font-mono">
-                No SLA observations
+              <div className="w-full h-28 bg-[#0f243f]/60 rounded border border-[#1b3459] p-3 flex flex-col items-center justify-center text-center space-y-1 font-mono text-[9.5px]">
+                <div className="flex items-center gap-1 text-amber-400 font-bold uppercase">
+                  <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                  <span>SLA • UNAVAILABLE</span>
+                </div>
+                <span className="text-slate-300 text-[8.5px] leading-tight">
+                  No observations for selected coordinate/time.
+                </span>
               </div>
             )}
           </div>

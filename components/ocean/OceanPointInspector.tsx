@@ -179,21 +179,31 @@ export default function OceanPointInspector({ onViewHistory }: OceanPointInspect
               ) : hasValue ? (
                 data!.value!.toFixed(2)
               ) : (
-                <span className="text-sm font-mono text-amber-400">NO DATA</span>
+                <span className="text-xs font-mono text-amber-400 font-bold">UNAVAILABLE</span>
               )}
             </span>
             <span className="text-xs text-slate-400 font-mono">
               {unitName}
             </span>
           </div>
-          {!hasValue && !loading && (
-            <span className="text-[8px] text-slate-400 block pt-0.5">
-              Land-masked or outside model coverage
-            </span>
-          )}
         </div>
         <Activity className="w-6 h-6 text-orca-blue opacity-70" />
       </div>
+
+      {!hasValue && !loading && (
+        <div className="bg-amber-950/40 border border-amber-800/60 rounded p-2.5 space-y-1 font-mono text-[9px] text-amber-200">
+          <div className="flex items-center gap-1.5 font-bold text-amber-300 uppercase">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>OBSERVATIONS UNAVAILABLE</span>
+          </div>
+          <p className="text-[8.5px] text-slate-300 leading-snug font-sans">
+            No valid ocean observations are available for the selected coordinate and time window.
+          </p>
+          <span className="text-[8px] text-amber-400/80 block font-mono">
+            Reason: Land-masked or outside model coverage
+          </span>
+        </div>
+      )}
 
       {/* Provenance Details */}
       <div className="space-y-1.5 text-[8.5px] border-t border-border-orca pt-2">

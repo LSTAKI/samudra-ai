@@ -148,7 +148,7 @@ export default function OceanExplorerSidebar() {
           </h2>
         </div>
         <span className="text-[9px] font-mono text-muted-orca bg-white px-1.5 py-0.5 border border-border-orca rounded">
-          DEEP EXPLORER
+          OCEAN EXPLORER
         </span>
       </div>
 

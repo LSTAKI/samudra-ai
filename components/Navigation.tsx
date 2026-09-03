@@ -12,7 +12,7 @@ const navItems = [
   { name: 'PFZ', href: '/research/pfz' },
   { name: 'Analytics', href: '/research/analytics' },
   { name: 'Command Center', href: '/research/command' },
-  { name: 'SAMUDRA AI', href: '/ai' },
+  { name: 'AI ASSISTANT', href: '/ai' },
 ];
 
 export default function Navigation() {

@@ -19,11 +19,14 @@ import {
 } from 'lucide-react';
 import { useOrcaStore } from '@/stores/useOrcaStore';
 
-const SUGGESTED_PROMPTS = [
+const QUICK_PROMPTS = [
   "What's the current ocean condition near Kochi?",
-  "Show me the latest SST around the Indian Ocean",
-  "Are there any marine hazards near Kochi?",
   "What are the current wave conditions?",
+  "Are there any marine hazards near Kochi?"
+];
+
+const ADVANCED_PROMPTS = [
+  "Show me the latest SST around the Indian Ocean",
   "Find suitable environmental fishing zones near me",
   "Explain the current marine conditions"
 ];
@@ -370,22 +373,44 @@ export default function OrcaAiPage() {
                     </p>
                   </div>
 
-                  {/* Suggested Prompts Cards */}
-                  <div className="w-full text-left space-y-2 pt-4 border-t border-[#1b3459]/50">
-                    <span className="text-[10px] font-mono text-muted-orca uppercase tracking-wider block">
-                      SUGGESTED ANALYTICAL PROMPTS
-                    </span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {SUGGESTED_PROMPTS.map((prompt, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => handleSendMessage(prompt, defaultLocationContext)}
-                          className="p-3 bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] hover:text-white border border-[#173863] hover:border-orca-blue rounded-lg text-left text-xs font-mono transition-all flex items-start justify-between group cursor-pointer shadow-sm"
-                        >
-                          <span className="leading-snug pr-2">&gt; &quot;{prompt}&quot;</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-orca-blue shrink-0 opacity-60 group-hover:opacity-100 transition-opacity mt-0.5" />
-                        </button>
-                      ))}
+                  {/* Grouped Suggested Prompts */}
+                  <div className="w-full text-left space-y-4 pt-4 border-t border-[#1b3459]/50 font-sans">
+                    {/* Quick Analysis Group */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-mono text-orca-blue font-bold uppercase tracking-wider block">
+                        QUICK ANALYSIS
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {QUICK_PROMPTS.map((prompt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSendMessage(prompt, defaultLocationContext)}
+                            className="p-3 bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] hover:text-white border border-[#173863] hover:border-orca-blue rounded-lg text-left text-xs font-mono transition-all flex items-start justify-between group cursor-pointer shadow-sm"
+                          >
+                            <span className="leading-snug pr-1">&gt; &quot;{prompt}&quot;</span>
+                            <ArrowRight className="w-3.5 h-3.5 text-orca-blue shrink-0 opacity-60 group-hover:opacity-100 transition-opacity mt-0.5" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Advanced Analysis Group */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-mono text-emerald-400 font-bold uppercase tracking-wider block">
+                        ADVANCED ANALYSIS
+                      </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {ADVANCED_PROMPTS.map((prompt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSendMessage(prompt, defaultLocationContext)}
+                            className="p-3 bg-[#0a1c35] hover:bg-[#112d53] text-[#a4c2f4] hover:text-white border border-[#173863] hover:border-orca-blue rounded-lg text-left text-xs font-mono transition-all flex items-start justify-between group cursor-pointer shadow-sm"
+                          >
+                            <span className="leading-snug pr-1">&gt; &quot;{prompt}&quot;</span>
+                            <ArrowRight className="w-3.5 h-3.5 text-emerald-400 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity mt-0.5" />
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -24,6 +24,11 @@ export default function PFZSidebar() {
         </span>
       </div>
 
+      {/* Scientific Disclaimer Note */}
+      <div className="bg-sky-50/70 border-b border-sky-200/80 px-4 py-2 text-[9.5px] text-[#1b4375] font-mono leading-tight">
+        Environmental suitability derived from observed ocean conditions. Not a fish detection or catch guarantee.
+      </div>
+
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
         {/* Region Presets & Coordinates */}

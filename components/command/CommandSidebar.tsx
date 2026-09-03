@@ -17,9 +17,15 @@ export default function CommandSidebar() {
             COMMAND WATCH
           </h2>
         </div>
-        <span className="text-[9px] font-mono text-muted-orca bg-white px-1.5 py-0.5 border border-border-orca rounded font-bold">
-          OPERATIONAL FEED
+        <span className="text-[9px] font-mono text-warning-orca bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-bold uppercase">
+          DEMONSTRATION SCENARIO
         </span>
+      </div>
+
+      {/* Demonstration Scenario Notice */}
+      <div className="bg-amber-50/80 border-b border-amber-200 px-4 py-2 text-[9.5px] text-amber-900 font-mono leading-tight">
+        <span className="font-bold uppercase block">Synthetic Scenario Context</span>
+        Demonstration scenario for operational workflow and maritime safety alerts.
       </div>
 
       {/* Body */}

@@ -9,42 +9,50 @@ from app.providers.copernicus.feature_info import execute_feature_info, calculat
 
 test_cases = [
     {
-        "name": "Kozhikode Coastal Click",
+        "name": "Kozhikode Offshore Valid Point",
         "lat": 10.9472,
         "lon": 75.7372,
         "expected_status": "CONNECTED",
         "expected_method": "EXACT_GRID_POINT",
         "expect_value": True,
+        "expect_same_coord": True,
+        "expect_zero_distance": True,
     },
     {
-        "name": "Kochi Coastal Click (Land-masked Fallback)",
+        "name": "Kochi Coastal Land-Masked Point (Nearest Ocean Fallback)",
         "lat": 9.9312,
         "lon": 76.2673,
         "expected_status": "CONNECTED",
         "expected_method": "NEAREST_OCEAN_CELL",
         "expect_value": True,
+        "expect_same_coord": False,
+        "expect_zero_distance": False,
     },
     {
-        "name": "Bangalore Inland Click (No Ocean Cell)",
+        "name": "Bangalore Inland Point (No Ocean Candidate)",
         "lat": 12.9716,
         "lon": 77.5946,
         "expected_status": "NO_DATA",
         "expected_method": "EXACT_GRID_POINT",
         "expect_value": False,
+        "expect_same_coord": True,
+        "expect_zero_distance": True,
     },
     {
-        "name": "Deep Offshore Arabian Sea",
+        "name": "Deep Offshore Arabian Sea Valid Point",
         "lat": 10.0000,
         "lon": 70.0000,
         "expected_status": "CONNECTED",
         "expected_method": "EXACT_GRID_POINT",
         "expect_value": True,
+        "expect_same_coord": True,
+        "expect_zero_distance": True,
     },
 ]
 
 async def run_tests():
     print("==================================================")
-    print("SAMUDRA AI — NEAREST-OCEAN SAMPLING AUDIT & VERIFICATION")
+    print("SAMUDRA AI — MINIMUM HAVERSINE DISTANCE & METADATA AUDIT")
     print("==================================================")
 
     all_passed = True
@@ -71,16 +79,19 @@ async def run_tests():
         print(f"Reported Distance: {dist} km | Calculated Haversine: {actual_dist:.2f} km")
         print(f"SST Value: {val} {res.get('unit')}")
 
-        # Strict Assertions
         passed = True
+
+        # Strict Assertion 1: Status
         if status != tc["expected_status"]:
             print(f"  [FAIL] Expected status {tc['expected_status']}, got {status}")
             passed = False
         
+        # Strict Assertion 2: Sampling Method
         if method != tc["expected_method"]:
             print(f"  [FAIL] Expected method {tc['expected_method']}, got {method}")
             passed = False
 
+        # Strict Assertion 3: Numerical Value Presence
         if tc["expect_value"] and val is None:
             print("  [FAIL] Expected valid numerical value, got None")
             passed = False
@@ -88,15 +99,24 @@ async def run_tests():
             print("  [FAIL] Expected None for inland click, got value")
             passed = False
 
-        if method == "EXACT_GRID_POINT" and (req_lat != samp_lat or req_lon != samp_lon):
-            print("  [FAIL] EXACT_GRID_POINT must have identical requested and sampled coordinates!")
+        # Strict Assertion 4: Coordinate Match / Displacement
+        is_same_coord = (req_lat == samp_lat and req_lon == samp_lon)
+        if tc["expect_same_coord"] and not is_same_coord:
+            print(f"  [FAIL] Expected identical coordinates, but requested ({req_lat}, {req_lon}) != sampled ({samp_lat}, {samp_lon})")
+            passed = False
+        elif not tc["expect_same_coord"] and is_same_coord:
+            print(f"  [FAIL] Expected non-zero coordinate displacement for fallback, but requested == sampled")
             passed = False
 
-        if method == "NEAREST_OCEAN_CELL" and (req_lat == samp_lat and req_lon == samp_lon):
-            print("  [FAIL] NEAREST_OCEAN_CELL must have non-zero coordinate displacement!")
+        # Strict Assertion 5: Distance Match
+        if tc["expect_zero_distance"] and dist != 0.0:
+            print(f"  [FAIL] Expected 0.0 km distance, got {dist} km")
+            passed = False
+        elif not tc["expect_zero_distance"] and dist <= 0.0:
+            print(f"  [FAIL] Expected >0.0 km distance for fallback, got {dist} km")
             passed = False
 
-        if abs(dist - actual_dist) > 0.1:
+        if abs(dist - actual_dist) > 0.01:
             print(f"  [FAIL] Reported distance ({dist}) disagrees with calculated Haversine ({actual_dist:.2f})")
             passed = False
 
@@ -107,7 +127,7 @@ async def run_tests():
 
     print("\n==================================================")
     if all_passed:
-        print("ALL SAMUDRA AI SAMPLING SUITE ASSERTS PASSED SUCCESSFULLY!")
+        print("ALL MINIMUM HAVERSINE SAMPLING SUITE ASSERTS PASSED SUCCESSFULLY!")
     else:
         print("SOME SAMPLING ASSERTS FAILED — SEE LOGS ABOVE.")
         sys.exit(1)

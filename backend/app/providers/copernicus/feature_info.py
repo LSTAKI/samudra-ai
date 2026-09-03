@@ -65,6 +65,7 @@ def _extract_props(features: list, meta: dict):
 
     return val, sampled_lat, sampled_lon, time_val
 
+
 def calculate_haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate Haversine distance in kilometers between two decimal coordinates."""
     if abs(lat1 - lat2) < 0.0001 and abs(lon1 - lon2) < 0.0001:
@@ -106,8 +107,8 @@ async def execute_feature_info(
             "variable": meta["variable"],
             "latitude": lat,
             "longitude": lon,
-            "sampled_latitude": lat,
-            "sampled_longitude": lon,
+            "sampled_latitude": round(lat, 4),
+            "sampled_longitude": round(lon, 4),
             "sampling_method": "EXACT_GRID_POINT",
             "sampling_distance_km": 0.0,
             "value": None,
@@ -152,11 +153,12 @@ async def execute_feature_info(
     sampled_lon = round(lon, 4)
     actual_time = time_iso or "2026-08-28T00:00:00Z"
     sampling_method = "EXACT_GRID_POINT"
+    distance_km = 0.0
 
     try:
         payload = do_query(lat, lon, time_iso)
         if payload:
-            val, s_lat, s_lon, t_val = _extract_props(payload.get("features", []), meta)
+            val, _, _, t_val = _extract_props(payload.get("features", []), meta)
             if t_val:
                 actual_time = str(t_val)
     except urllib.error.HTTPError as http_err:
@@ -164,7 +166,7 @@ async def execute_feature_info(
             try:
                 payload = do_query(lat, lon, None)
                 if payload:
-                    val, s_lat, s_lon, t_val = _extract_props(payload.get("features", []), meta)
+                    val, _, _, t_val = _extract_props(payload.get("features", []), meta)
                     if t_val:
                         actual_time = str(t_val)
             except Exception:
@@ -172,47 +174,61 @@ async def execute_feature_info(
     except Exception as e:
         logger.warning(f"Feature info initial query error: {e}")
 
-    # If point is land-masked (val is None), check nearest offshore ocean grid cell up to ~0.20 deg (~22 km)
-    alt_found = False
+    # If point is land-masked (val is None), evaluate candidates within 0.20 deg (~22.2 km)
+    # and select the valid ocean candidate with MINIMUM Haversine distance.
     if val is None:
-        spiral_offsets = []
+        candidate_offsets = []
         for r in [0.05, 0.10, 0.15, 0.20]:
-            spiral_offsets.extend([
+            candidate_offsets.extend([
                 (0.0, -r), (-r, 0.0), (0.0, r), (r, 0.0),
                 (-r, -r), (-r, r), (r, -r), (r, r)
             ])
         
-        for d_lat, d_lon in spiral_offsets:
+        valid_candidates = []
+        for d_lat, d_lon in candidate_offsets:
+            target_lat = round(lat + d_lat, 4)
+            target_lon = round(lon + d_lon, 4)
+            dist_km = calculate_haversine_distance(lat, lon, target_lat, target_lon)
+            
             try:
-                target_lat = round(lat + d_lat, 4)
-                target_lon = round(lon + d_lon, 4)
                 alt_payload = do_query(target_lat, target_lon, time_iso)
                 if alt_payload:
-                    alt_val, s_lat, s_lon, t_val = _extract_props(alt_payload.get("features", []), meta)
+                    alt_val, _, _, t_val = _extract_props(alt_payload.get("features", []), meta)
                     if alt_val is not None:
-                        val = alt_val
-                        payload = alt_payload
-                        alt_found = True
-                        sampled_lat = target_lat
-                        sampled_lon = target_lon
-                        if t_val:
-                            actual_time = str(t_val)
-                        break
+                        valid_candidates.append({
+                            "lat": target_lat,
+                            "lon": target_lon,
+                            "val": alt_val,
+                            "payload": alt_payload,
+                            "time": str(t_val) if t_val else actual_time,
+                            "distance_km": dist_km
+                        })
             except Exception:
                 continue
 
-    if val is None:
-        sampling_method = "EXACT_GRID_POINT"
-        sampled_lat = round(lat, 4)
-        sampled_lon = round(lon, 4)
-    elif alt_found:
-        sampling_method = "NEAREST_OCEAN_CELL"
+        if valid_candidates:
+            # Sort by minimum Haversine distance
+            valid_candidates.sort(key=lambda c: c["distance_km"])
+            best_cand = valid_candidates[0]
+
+            val = best_cand["val"]
+            payload = best_cand["payload"]
+            sampled_lat = best_cand["lat"]
+            sampled_lon = best_cand["lon"]
+            actual_time = best_cand["time"]
+            distance_km = best_cand["distance_km"]
+            sampling_method = "NEAREST_OCEAN_CELL"
+        else:
+            val = None
+            sampled_lat = round(lat, 4)
+            sampled_lon = round(lon, 4)
+            distance_km = 0.0
+            sampling_method = "EXACT_GRID_POINT"
     else:
         sampling_method = "EXACT_GRID_POINT"
         sampled_lat = round(lat, 4)
         sampled_lon = round(lon, 4)
-
-    distance_km = calculate_haversine_distance(lat, lon, sampled_lat, sampled_lon)
+        distance_km = 0.0
 
     obs_status = "CONNECTED" if val is not None else "NO_DATA"
     result = {

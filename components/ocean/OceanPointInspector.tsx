@@ -23,7 +23,7 @@ interface OceanPointInspectorProps {
 }
 
 export default function OceanPointInspector({ onViewHistory }: OceanPointInspectorProps) {
-  const { selectedCoordinates, selectedParameter, selectedTimestamp } = useOrcaStore();
+  const { selectedCoordinates, setSelectedCoordinates, selectedParameter, selectedTimestamp } = useOrcaStore();
   const [data, setData] = useState<CopernicusFeatureInfoResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -134,6 +134,42 @@ export default function OceanPointInspector({ onViewHistory }: OceanPointInspect
               {data?.status || 'STANDBY'}
             </span>
           )}
+        </div>
+      </div>
+
+      {/* Validated Locations Quick-Selector */}
+      <div className="space-y-1 bg-blue-50/40 p-2 rounded border border-blue-100/80">
+        <div className="flex items-center justify-between">
+          <span className="text-[8.5px] font-bold text-orca-blue font-mono uppercase tracking-wider block">
+            VALIDATED LOCATIONS
+          </span>
+          <span className="text-[7.5px] font-mono px-1 py-0.2 rounded bg-blue-100/60 text-blue-800 border border-blue-200/80 font-bold">
+            LIVE DATA • VALIDATED LOCATION
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-1">
+          {[
+            { name: 'Arabian Sea', lat: 10.0000, lng: 70.0000, desc: 'Valid Ocean' },
+            { name: 'Kochi Coast', lat: 9.9312, lng: 76.2673, desc: 'Nearest Water' },
+            { name: 'Bay of Bengal', lat: 15.0000, lng: 82.0000, desc: 'Offshore' }
+          ].map((loc) => {
+            const isSelected = selectedCoordinates && Math.abs(selectedCoordinates.lat - loc.lat) < 0.001 && Math.abs(selectedCoordinates.lng - loc.lng) < 0.001;
+            return (
+              <button
+                key={loc.name}
+                type="button"
+                onClick={() => setSelectedCoordinates({ lat: loc.lat, lng: loc.lng })}
+                className={`p-1 rounded text-left flex flex-col transition-all ${
+                  isSelected
+                    ? 'border border-orca-blue bg-white font-bold shadow-2xs text-orca-blue'
+                    : 'border border-border-orca/70 bg-white/80 hover:bg-white text-primary-text'
+                }`}
+              >
+                <span className="text-[8.5px] font-bold truncate">{loc.name}</span>
+                <span className="text-[7.5px] text-muted-orca font-mono truncate">{loc.desc}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

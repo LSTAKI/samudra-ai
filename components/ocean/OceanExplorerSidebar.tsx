@@ -206,19 +206,40 @@ export default function OceanExplorerSidebar() {
             </button>
           </form>
 
-          {/* Location Presets */}
-          <div className="space-y-1">
-            <span className="text-[9px] text-muted-orca font-mono uppercase block">Named Regions</span>
+          {/* Validated Locations Quick-Selector */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[9.5px] font-bold text-[#0284c7] font-mono uppercase tracking-wider block">
+                VALIDATED LOCATIONS
+              </span>
+              <span className="text-[7.5px] font-mono px-1 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                LIVE DATA • VALIDATED LOCATION
+              </span>
+            </div>
             <div className="grid grid-cols-1 gap-1">
-              {presets.map((preset) => (
+              {[
+                { name: 'Arabian Sea', lat: 10.0000, lng: 70.0000, desc: 'Expected: valid ocean observation', badge: '10.0°N, 70.0°E' },
+                { name: 'Kochi Coast', lat: 9.9312, lng: 76.2673, desc: 'Expected: nearest-ocean-cell fallback', badge: '9.9°N, 76.3°E' },
+                { name: 'Bay of Bengal', lat: 15.0000, lng: 82.0000, desc: 'Expected: offshore ocean location', badge: '15.0°N, 82.0°E' }
+              ].map((loc) => (
                 <button
-                  key={preset.name}
+                  key={loc.name}
                   type="button"
-                  onClick={() => handleSelectPreset(preset)}
-                  className="text-left px-2 py-1 rounded border border-border-orca/60 bg-white hover:bg-secondary-surface text-[10px] font-mono flex items-center justify-between transition-colors"
+                  onClick={() => {
+                    setSelectedCoordinates({ lat: loc.lat, lng: loc.lng });
+                    setInputLat(loc.lat.toFixed(4));
+                    setInputLng(loc.lng.toFixed(4));
+                  }}
+                  className="text-left px-2 py-1.5 rounded border border-border-orca/80 bg-white hover:bg-secondary-surface text-[10px] font-mono flex items-center justify-between transition-colors shadow-2xs group"
                 >
-                  <span className="font-semibold text-primary-text">{preset.name}</span>
-                  <span className="text-muted-orca text-[9px]">{preset.basin}</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-primary-text group-hover:text-orca-blue flex items-center gap-1">
+                      <MapPin className="w-2.5 h-2.5 text-orca-blue shrink-0" />
+                      {loc.name}
+                    </span>
+                    <span className="text-muted-orca text-[8.5px]">{loc.desc}</span>
+                  </div>
+                  <span className="text-orca-blue text-[8.5px] font-semibold bg-blue-50/80 px-1 py-0.5 rounded border border-blue-100">{loc.badge}</span>
                 </button>
               ))}
             </div>

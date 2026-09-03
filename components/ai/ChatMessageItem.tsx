@@ -12,10 +12,7 @@ import {
   Clock,
   ChevronDown,
   ChevronUp,
-  RotateCcw,
-  Activity,
-  Waves,
-  Thermometer
+  RotateCcw
 } from 'lucide-react';
 import { ChatResponseData, ChatSource, ChatHazard } from '@/lib/api/chat';
 
@@ -37,60 +34,82 @@ interface ChatMessageItemProps {
 interface MetricTile {
   label: string;
   value: string;
-  unit?: string;
 }
 
 /**
- * Safely extracts structured numerical marine metrics from observation text.
- * Falls back to bullet list for any unparsed or non-standard sentences.
+ * Safely extracts explicit numerical marine metrics from observation text for fast visual scanning.
+ * ALL raw observation sentences returned by the backend are ALWAYS preserved in full in the bullet list.
  */
-function parseObservationMetrics(observations: string[]): { metrics: MetricTile[]; bullets: string[] } {
+function extractObservationMetrics(observations: string[]): MetricTile[] {
   const metrics: MetricTile[] = [];
-  const bullets: string[] = [];
+  const seenLabels = new Set<string>();
 
   observations.forEach((obs) => {
-    let matched = false;
-
     // 1. Sea Surface Temperature
-    const sstMatch = obs.match(/Sea surface temperature is ([\d.]+\s*°?C)/i);
-    if (sstMatch) {
+    const sstMatch = obs.match(/(?:Sea surface temperature is|recorded at)\s+([\d.]+\s*°?C)/i);
+    if (sstMatch && !seenLabels.has('SST')) {
       metrics.push({ label: 'SEA SURFACE TEMP', value: sstMatch[1] });
-      matched = true;
+      seenLabels.add('SST');
     }
 
-    // 2. Wave Height & Period
+    // 2. Wave Height
     const waveHeightMatch = obs.match(/Wave height is ([\d.]+\s*m)/i);
-    if (waveHeightMatch) {
+    if (waveHeightMatch && !seenLabels.has('WAVE_HEIGHT')) {
       metrics.push({ label: 'WAVE HEIGHT', value: waveHeightMatch[1] });
-      matched = true;
+      seenLabels.add('WAVE_HEIGHT');
     }
 
+    // 3. Wave Period
     const wavePeriodMatch = obs.match(/period of ([\d.]+\s*s)/i);
-    if (wavePeriodMatch) {
+    if (wavePeriodMatch && !seenLabels.has('WAVE_PERIOD')) {
       metrics.push({ label: 'WAVE PERIOD', value: wavePeriodMatch[1] });
-      matched = true;
+      seenLabels.add('WAVE_PERIOD');
     }
 
-    // 3. Ocean Current
-    const currentMatch = obs.match(/Ocean current speed is ([\d.]+\s*km\/h|[\d.]+\s*m\/s)/i);
-    if (currentMatch) {
-      metrics.push({ label: 'CURRENT SPEED', value: currentMatch[1] });
-      matched = true;
+    // 4. Wave Direction
+    const waveDirMatch = obs.match(/from ([\d.]+\s*°)(?!\s*C)/i);
+    if (waveDirMatch && !seenLabels.has('WAVE_DIR')) {
+      metrics.push({ label: 'WAVE DIRECTION', value: waveDirMatch[1] });
+      seenLabels.add('WAVE_DIR');
     }
 
-    // 4. Wind Speed
-    const windMatch = obs.match(/wind speed is ([\d.]+\s*km\/h|[\d.]+\s*knots)/i);
-    if (windMatch) {
-      metrics.push({ label: 'WIND SPEED', value: windMatch[1] });
-      matched = true;
+    // 5. Ocean Current Speed
+    const currentSpeedMatch = obs.match(/Ocean current speed is ([\d.]+\s*km\/h|[\d.]+\s*m\/s)/i);
+    if (currentSpeedMatch && !seenLabels.has('CURRENT_SPEED')) {
+      metrics.push({ label: 'CURRENT SPEED', value: currentSpeedMatch[1] });
+      seenLabels.add('CURRENT_SPEED');
     }
 
-    if (!matched) {
-      bullets.push(obs);
+    // 6. Ocean Current Direction
+    const currentHeadingMatch = obs.match(/heading ([\d.]+\s*°)/i);
+    if (currentHeadingMatch && !seenLabels.has('CURRENT_DIR')) {
+      metrics.push({ label: 'CURRENT DIRECTION', value: currentHeadingMatch[1] });
+      seenLabels.add('CURRENT_DIR');
+    }
+
+    // 7. Wind Speed
+    const windSpeedMatch = obs.match(/wind speed is ([\d.]+\s*km\/h|[\d.]+\s*knots)/i);
+    if (windSpeedMatch && !seenLabels.has('WIND_SPEED')) {
+      metrics.push({ label: 'WIND SPEED', value: windSpeedMatch[1] });
+      seenLabels.add('WIND_SPEED');
+    }
+
+    // 8. Chlorophyll
+    const chlMatch = obs.match(/Chlorophyll(?:\s*concentration)?\s*is\s*([\d.]+\s*mg\/m³)/i);
+    if (chlMatch && !seenLabels.has('CHL')) {
+      metrics.push({ label: 'CHLOROPHYLL', value: chlMatch[1] });
+      seenLabels.add('CHL');
+    }
+
+    // 9. Sea Level Anomaly
+    const slaMatch = obs.match(/Sea level(?:\s*anomaly)?\s*is\s*([\d.]+\s*m)/i);
+    if (slaMatch && !seenLabels.has('SLA')) {
+      metrics.push({ label: 'SEA LEVEL ANOMALY', value: slaMatch[1] });
+      seenLabels.add('SLA');
     }
   });
 
-  return { metrics, bullets };
+  return metrics;
 }
 
 export default function ChatMessageItem({ message, onRetry }: ChatMessageItemProps) {
@@ -135,7 +154,7 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
 
   const observations = answer?.observations || [];
   const recommendations = answer?.recommendations || [];
-  const { metrics, bullets: observationBullets } = parseObservationMetrics(observations);
+  const metrics = extractObservationMetrics(observations);
 
   return (
     <div className="flex justify-start my-4 select-text">
@@ -219,7 +238,7 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
           </p>
         )}
 
-        {/* Parsed Metric Cards (if structured observations exist) */}
+        {/* Parsed Metric Cards (Rendered ONLY if explicit values match backend text) */}
         {metrics.length > 0 && (
           <div className="space-y-1.5">
             <span className="text-[9.5px] font-mono text-muted-orca font-bold uppercase tracking-wider block">
@@ -239,15 +258,15 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
           </div>
         )}
 
-        {/* Observations list */}
-        {observationBullets.length > 0 && (
+        {/* Observations List (100% of Raw Sentences Preserved) */}
+        {observations.length > 0 && (
           <div className="space-y-2 bg-[#051326] p-3 rounded-md border border-[#1b3459]">
             <span className="text-[9.5px] font-mono text-[#a4c2f4] font-bold uppercase tracking-wider block flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5 text-orca-blue" />
               VERIFIED OCEAN OBSERVATIONS
             </span>
             <ul className="space-y-1.5 text-xs text-slate-200">
-              {observationBullets.map((obs, idx) => (
+              {observations.map((obs, idx) => (
                 <li key={idx} className="flex items-start space-x-2">
                   <span className="text-orca-blue font-mono font-bold mt-0.5">•</span>
                   <span className="leading-normal">{obs}</span>
@@ -257,7 +276,7 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
           </div>
         )}
 
-        {/* Recommendations list */}
+        {/* Recommendations List */}
         {recommendations.length > 0 && (
           <div className="space-y-2 bg-[#05182e] p-3 rounded-md border border-[#1b3459]">
             <span className="text-[9.5px] font-mono text-emerald-400 font-bold uppercase tracking-wider block flex items-center gap-1.5">
@@ -315,14 +334,14 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
           </div>
         )}
 
-        {/* Data Quality Row (Compact Bar) */}
+        {/* Data Quality Row (Exact API Values Rendered) */}
         {dataQuality && (
           <div className="flex items-center justify-between px-3 py-2 bg-[#040e1c] border border-[#1b3459] rounded-md font-mono text-[9.5px] text-muted-orca">
             <div className="flex items-center space-x-2">
               <Layers className="w-3.5 h-3.5 text-orca-blue shrink-0" />
               <span className="font-bold text-white uppercase">DATA QUALITY:</span>
               <span className="text-slate-200">
-                {dataQuality.completeness_percent ?? '--'}% completeness · {dataQuality.available ?? 0} available / {dataQuality.requested ?? 0} requested
+                {dataQuality.completeness_percent !== undefined ? `${dataQuality.completeness_percent}% completeness` : ''} · {dataQuality.available ?? 0} available / {dataQuality.requested ?? 0} requested
               </span>
             </div>
             {dataQuality.source_count !== undefined && (
@@ -331,7 +350,7 @@ export default function ChatMessageItem({ message, onRetry }: ChatMessageItemPro
           </div>
         )}
 
-        {/* Provenance & Sources Section (Compact Collapsible Tags) */}
+        {/* Provenance & Sources Section */}
         {sources.length > 0 && (
           <div className="border-t border-[#1b3459]/60 pt-2 space-y-1.5 font-mono text-[9.5px]">
             <div className="flex items-center justify-between">

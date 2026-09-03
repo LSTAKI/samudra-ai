@@ -12,6 +12,7 @@ const navItems = [
   { name: 'PFZ', href: '/research/pfz' },
   { name: 'Analytics', href: '/research/analytics' },
   { name: 'Command Center', href: '/research/command' },
+  { name: 'ORCA AI', href: '/ai' },
 ];
 
 export default function Navigation() {
